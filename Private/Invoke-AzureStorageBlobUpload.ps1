@@ -88,14 +88,14 @@ function Invoke-AzureStorageBlobUpload {
         Write-Verbose -Message "Uploading file to Azure Storage blob, processing chunk '$($CurrentChunk)' of '$($ChunkCount)'"
 
         $UploadSuccess = $false
-        $RetryCount = 5
+        $RetryCount = 8
         for ($i = 0; $i -lt $RetryCount; $i++) {
             try {
                 $UploadResponse = Invoke-AzureStorageBlobUploadChunk -StorageUri $StorageUri -ChunkID $ChunkID -Bytes $Bytes
                 $UploadSuccess = $true
                 break
             } catch {
-                $RetryDelay = Get-Random -Minimum 7 -Maximum 13
+                $RetryDelay = Get-Random -Minimum 7 -Maximum 30
                 Write-Warning "Failed to upload chunk [$($CurrentChunk)] of [$($ChunkCount)]. Attempt [$($i + 1)] of [$RetryCount]. Retrying in [$RetryDelay] seconds. Error: $_"
                 Start-Sleep -Seconds $RetryDelay
                 Write-Warning "Retrying upload of chunk [$($CurrentChunk)] of [$($ChunkCount)]"
@@ -137,7 +137,7 @@ function Invoke-AzureStorageBlobUpload {
             $FinalizeSuccess = $true
             break
         } catch {
-            $RetryDelay = Get-Random -Minimum 7 -Maximum 13
+            $RetryDelay = Get-Random -Minimum 7 -Maximum 30
             Write-Warning "Failed to finalize Azure Storage blob upload. Attempt $($i + 1) of $RetryCount. Retrying in [$RetryDelay] seconds. Error: $_"
             Start-Sleep -Seconds $RetryDelay
         }
