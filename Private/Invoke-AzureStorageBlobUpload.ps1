@@ -89,13 +89,14 @@ function Invoke-AzureStorageBlobUpload {
 
         $UploadSuccess = $false
         $RetryCount = 8
+        $RetryDelayRange = @{ Min = 7; Max = 30 }
         for ($i = 0; $i -lt $RetryCount; $i++) {
             try {
                 $UploadResponse = Invoke-AzureStorageBlobUploadChunk -StorageUri $StorageUri -ChunkID $ChunkID -Bytes $Bytes
                 $UploadSuccess = $true
                 break
             } catch {
-                $RetryDelay = Get-Random -Minimum 7 -Maximum 30
+                $RetryDelay = Get-Random -Minimum $RetryDelayRange.Min -Maximum $RetryDelayRange.Max
                 Write-Warning "Failed to upload chunk [$($CurrentChunk)] of [$($ChunkCount)]. Attempt [$($i + 1)] of [$RetryCount]. Retrying in [$RetryDelay] seconds. Error: $_"
                 Start-Sleep -Seconds $RetryDelay
                 Write-Warning "Retrying upload of chunk [$($CurrentChunk)] of [$($ChunkCount)]"
@@ -131,20 +132,22 @@ function Invoke-AzureStorageBlobUpload {
 
     # Finalize the upload of the content file to Azure Storage blob
     $FinalizeSuccess = $false
+    $RetryCount = 8
+    $RetryDelayRange = @{ Min = 7; Max = 30 }
     for ($i = 0; $i -lt $RetryCount; $i++) {
         try {
             Invoke-AzureStorageBlobUploadFinalize -StorageUri $StorageUri -ChunkID $ChunkIDs
             $FinalizeSuccess = $true
             break
         } catch {
-            $RetryDelay = Get-Random -Minimum 7 -Maximum 30
-            Write-Warning "Failed to finalize Azure Storage blob upload. Attempt $($i + 1) of $RetryCount. Retrying in [$RetryDelay] seconds. Error: $_"
+            $RetryDelay = Get-Random -Minimum $RetryDelayRange.Min -Maximum $RetryDelayRange.Max
+            Write-Warning "Failed to finalize Azure Storage blob upload. Attempt [$($i + 1)] of [$RetryCount]. Retrying in [$RetryDelay] seconds. Error: $_"
             Start-Sleep -Seconds $RetryDelay
         }
     }
 
     if (-not $FinalizeSuccess) {
-        Write-Error "Failed to finalize upload after $RetryCount attempts. Aborting upload."
+        Write-Error "Failed to finalize upload after [$RetryCount] attempts. Aborting upload."
         return
     }
 
