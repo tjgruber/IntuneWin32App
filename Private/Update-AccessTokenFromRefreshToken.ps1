@@ -23,10 +23,11 @@ function Update-AccessTokenFromRefreshToken {
         Author:      Nickolaj Andersen
         Contact:     @NickolajA
         Created:     2026-01-04
-        Updated:     2026-01-04
+        Updated:     2026-01-18
 
         Version history:
         1.0.0 - (2026-01-04) Function created
+        1.0.1 - (2026-01-18) Fixed Issue #208: Added refresh token storage and offline_access scope to ensure subsequent token refreshes work properly
     #>
     param(
         [parameter(Mandatory = $true, HelpMessage = "Tenant ID of the Entra ID tenant.")]
@@ -41,9 +42,9 @@ function Update-AccessTokenFromRefreshToken {
         [ValidateNotNullOrEmpty()]
         [String]$RefreshToken,
 
-        [parameter(Mandatory = $false, HelpMessage = "Array of permission scopes to request.")]
+        [parameter(Mandatory = $true, HelpMessage = "Array of permission scopes to request.")]
         [ValidateNotNullOrEmpty()]
-        [String[]]$Scopes = @("DeviceManagementApps.ReadWrite.All", "DeviceManagementRBAC.Read.All")
+        [String[]]$Scopes
     )
     Process {
         try {
@@ -78,6 +79,15 @@ function Update-AccessTokenFromRefreshToken {
             
             # Add AccessToken property for consistent access
             $TokenResponse | Add-Member -MemberType NoteProperty -Name "AccessToken" -Value $TokenResponse.access_token -Force
+            
+            # Store refresh token if available for subsequent silent token renewals
+            if ($TokenResponse.refresh_token) {
+                $TokenResponse | Add-Member -MemberType NoteProperty -Name "RefreshToken" -Value $TokenResponse.refresh_token -Force
+                Write-Verbose -Message "Refresh token stored for subsequent silent token renewals"
+            }
+            else {
+                Write-Warning -Message "No refresh token returned in refresh response. Token refresh may not work in future requests."
+            }
 
             # Update global variable
             $Global:AccessToken = $TokenResponse

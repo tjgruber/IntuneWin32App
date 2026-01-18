@@ -1,5 +1,16 @@
 # Release notes for IntuneWin32App module
 
+## 1.5.1
+
+### Bug Fixes
+- Fixed Issue #208: Refresh token functionality now works properly - Update-AccessTokenFromRefreshToken function now stores the new refresh token returned by Entra ID and includes offline_access scope to ensure subsequent token refreshes continue to work
+- Updated Connect-MSIntuneGraph and Invoke-MSGraphOperation to include offline_access scope in all token refresh requests to maintain refresh token continuity
+
+### Enhancements
+- Added Scopes parameter to Connect-MSIntuneGraph function allowing users to customize requested permissions while providing sensible defaults for full module functionality (DeviceManagementApps.ReadWrite.All, DeviceManagementConfiguration.ReadWrite.All, DeviceManagementRBAC.Read.All, Group.Read.All, offline_access)
+- Users can now use group-based assignments and assignment filters without manually specifying additional scopes
+- Private authentication functions now require scopes to be passed from public function rather than having defaults, following proper PowerShell module design patterns
+
 ## 1.5.0
 
 ### Breaking Changes

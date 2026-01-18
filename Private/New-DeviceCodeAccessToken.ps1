@@ -35,9 +35,9 @@ function New-DeviceCodeAccessToken {
         [ValidateNotNullOrEmpty()]
         [String]$ClientID,
 
-        [parameter(Mandatory = $false, HelpMessage = "Array of permission scopes to request.")]
+        [parameter(Mandatory = $true, HelpMessage = "Array of permission scopes to request.")]
         [ValidateNotNullOrEmpty()]
-        [String[]]$Scopes = @("DeviceManagementApps.ReadWrite.All", "DeviceManagementRBAC.Read.All", "offline_access")
+        [String[]]$Scopes
     )
     Process {
         try {

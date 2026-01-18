@@ -80,11 +80,31 @@ $ClientSecret = "<your-client-secret>"
 Connect-MSIntuneGraph -TenantID "name.onmicrosoft.com" -ClientID "<your-client-id>" -ClientSecret $ClientSecret
 ```
 
+#### Custom Scopes
+Customize the requested permission scopes if needed:
+```PowerShell
+$CustomScopes = @("DeviceManagementApps.ReadWrite.All", "offline_access")
+Connect-MSIntuneGraph -TenantID "name.onmicrosoft.com" -ClientID "<your-client-id>" -Scopes $CustomScopes
+```
+
 ### Entra ID App Registration Requirements
 Your Entra ID app registration must have:
-- **API Permissions**: `DeviceManagementApps.ReadWrite.All` and `DeviceManagementRBAC.Read.All` (Delegated or Application permissions)
+
+**Required API Permissions (Delegated):**
+- `DeviceManagementApps.ReadWrite.All` - Create, read, update, delete Win32 apps
+- `DeviceManagementConfiguration.ReadWrite.All` - Manage Assignments and Filters
+- `DeviceManagementRBAC.Read.All` - Read role-based access control
+- `Group.Read.All` - Read Entra ID groups (required for group-based assignments)
+
+**Optional API Permissions:**
+- `GroupMember.Read.All` - Read group membership (for validation)
+
+**Authentication Configuration:**
 - **Redirect URI**: `http://localhost` (for Interactive flow)
 - **Public client**: Yes (for Interactive and Device Code flows)
+- **Admin consent**: May be required depending on your organization's policies
+
+**Note**: The module automatically requests `offline_access` scope to enable refresh token functionality for long-running sessions.
 
 ## Encoding recommendations
 When for instance UTF-8 encoding is required, ensure the file is encoded with UTF-8 with BOM, this should address some problems reported in the past where certain characters was not shown correctly in the MEM portal.

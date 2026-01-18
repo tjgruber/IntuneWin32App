@@ -38,7 +38,7 @@ function Invoke-MSGraphOperation {
         Author:      Nickolaj Andersen & Jan Ketil Skanke
         Contact:     @JankeSkanke @NickolajA
         Created:     2020-10-11
-        Updated:     2026-01-04
+        Updated:     2026-01-18
 
         Version history:
         1.0.0 - (2020-10-11) Function created
@@ -50,6 +50,7 @@ function Invoke-MSGraphOperation {
         1.0.5 - (2026-01-04) Added sophisticated retry logic with exponential backoff, Retry-After header support, and transient error handling.
         1.0.6 - (2026-01-04) Implemented automatic token refresh using Update-AccessTokenFromRefreshToken when token expires.
                              Supports up to 10 retry attempts with intelligent delay calculation based on Graph API throttling responses.
+        1.0.7 - (2026-01-18) Fixed Issue #208: Ensured offline_access scope is included in automatic token refresh to maintain refresh token continuity
     #>    
     param(
         [parameter(Mandatory = $true, ParameterSetName = "GET", HelpMessage = "Switch parameter used to specify the method operation as 'GET'.")]
@@ -113,7 +114,12 @@ function Invoke-MSGraphOperation {
             if ($null -ne $Global:AccessToken -and $Global:AccessToken.PSObject.Properties["RefreshToken"] -and -not [string]::IsNullOrEmpty($Global:AccessToken.RefreshToken)) {
                 Write-Verbose -Message "Attempting silent token refresh"
                 try {
-                    $Scopes = if ($Global:AccessToken.PSObject.Properties["Scopes"]) { $Global:AccessToken.Scopes } else { @("DeviceManagementApps.ReadWrite.All", "DeviceManagementRBAC.Read.All") }
+                    $Scopes = if ($Global:AccessToken.PSObject.Properties["Scopes"]) { 
+                        $Global:AccessToken.Scopes 
+                    }
+                    else { 
+                        @("DeviceManagementApps.ReadWrite.All", "offline_access") 
+                    }
                     Update-AccessTokenFromRefreshToken -TenantID $Global:AccessTokenTenantID -ClientID $Global:AccessToken.client_id -RefreshToken $Global:AccessToken.RefreshToken -Scopes $Scopes
                     
                     # Update authentication header with new token

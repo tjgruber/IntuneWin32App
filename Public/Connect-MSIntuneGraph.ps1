@@ -31,6 +31,9 @@ function Connect-MSIntuneGraph {
     .PARAMETER Refresh
         Specify to refresh an existing access token using stored refresh token.
 
+    .PARAMETER Scopes
+        Specify the permission scopes to request. Defaults include DeviceManagementApps.ReadWrite.All, DeviceManagementConfiguration.ReadWrite.All, DeviceManagementRBAC.Read.All, Group.Read.All, and offline_access for full module functionality.
+
     .NOTES
         Author:      Nickolaj Andersen
         Contact:     @NickolajA
@@ -48,6 +51,8 @@ function Connect-MSIntuneGraph {
         1.0.7 - (2026-01-02) Added DeviceCode authentication flow support using New-DeviceCodeAccessToken
         1.0.8 - (2026-01-04) Implemented silent token refresh using Update-AccessTokenFromRefreshToken function
         1.0.9 - (2026-01-18) Implemented native client certificate authentication using New-ClientCertificateAccessToken function - completes all OAuth 2.0 flows without external dependencies
+        1.1.0 - (2026-01-18) Fixed Issue #208: Ensured offline_access scope is included in token refresh requests to maintain refresh token continuity
+        1.1.1 - (2026-01-18) Added Scopes parameter to allow users to customize requested permissions while providing sensible defaults for full module functionality
     #>
     [CmdletBinding(DefaultParameterSetName = "Interactive")]
     param(
@@ -87,7 +92,11 @@ function Connect-MSIntuneGraph {
 
         [parameter(Mandatory = $false, ParameterSetName = "Interactive", HelpMessage = "Specify to refresh an existing access token using stored refresh token.")]
         [parameter(Mandatory = $false, ParameterSetName = "DeviceCode")]
-        [switch]$Refresh
+        [switch]$Refresh,
+
+        [parameter(Mandatory = $false, HelpMessage = "Array of permission scopes to request.")]
+        [ValidateNotNullOrEmpty()]
+        [string[]]$Scopes = @("DeviceManagementApps.ReadWrite.All", "DeviceManagementConfiguration.ReadWrite.All", "DeviceManagementRBAC.Read.All", "Group.Read.All", "offline_access")
     )
     Begin {
         # Determine the correct RedirectUri (also known as Reply URL) for OAuth authentication
@@ -113,8 +122,13 @@ function Connect-MSIntuneGraph {
                 if ($null -ne $Global:AccessToken -and $Global:AccessToken.PSObject.Properties["RefreshToken"] -and -not [string]::IsNullOrEmpty($Global:AccessToken.RefreshToken)) {
                     Write-Verbose -Message "Refresh parameter specified and refresh token available, attempting silent token refresh"
                     try {
-                        $Scopes = if ($Global:AccessToken.PSObject.Properties["Scopes"]) { $Global:AccessToken.Scopes } else { @("DeviceManagementApps.ReadWrite.All", "DeviceManagementRBAC.Read.All") }
-                        Update-AccessTokenFromRefreshToken -TenantID $TenantID -ClientID $ClientID -RefreshToken $Global:AccessToken.RefreshToken -Scopes $Scopes
+                        $RefreshScopes = if ($Global:AccessToken.PSObject.Properties["Scopes"]) { 
+                            $Global:AccessToken.Scopes 
+                        }
+                        else { 
+                            $Scopes
+                        }
+                        Update-AccessTokenFromRefreshToken -TenantID $TenantID -ClientID $ClientID -RefreshToken $Global:AccessToken.RefreshToken -Scopes $RefreshScopes
                         Write-Verbose -Message "Successfully refreshed access token silently"
                         
                         # Construct the required authentication header
@@ -137,7 +151,7 @@ function Connect-MSIntuneGraph {
                 "Interactive" {
                     Write-Verbose -Message "Using New-DelegatedAccessToken for interactive authentication"
                     try {
-                        New-DelegatedAccessToken -TenantID $TenantID -ClientID $ClientID -RedirectUri $RedirectUri
+                        New-DelegatedAccessToken -TenantID $TenantID -ClientID $ClientID -RedirectUri $RedirectUri -Scopes $Scopes
                         $Global:AccessTokenTenantID = $TenantID
                         Write-Verbose -Message "Successfully retrieved access token using New-DelegatedAccessToken"
                     }
@@ -149,7 +163,7 @@ function Connect-MSIntuneGraph {
                 "DeviceCode" {
                     Write-Verbose -Message "Using New-DeviceCodeAccessToken for device code authentication"
                     try {
-                        New-DeviceCodeAccessToken -TenantID $TenantID -ClientID $ClientID
+                        New-DeviceCodeAccessToken -TenantID $TenantID -ClientID $ClientID -Scopes $Scopes
                         $Global:AccessTokenTenantID = $TenantID
                         Write-Verbose -Message "Successfully retrieved access token using New-DeviceCodeAccessToken"
                     }
