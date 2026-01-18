@@ -97,23 +97,57 @@ function New-ClientCertificateAccessToken {
                 # Try to get RSA private key (works for both PowerShell 5.1 and 7.x)
                 if ($ClientCertificate.PrivateKey -is [System.Security.Cryptography.RSACryptoServiceProvider]) {
                     $RSA = $ClientCertificate.PrivateKey
+                    $RSAType = "RSACryptoServiceProvider"
                 }
                 elseif ($ClientCertificate.PrivateKey -is [System.Security.Cryptography.RSA]) {
                     $RSA = $ClientCertificate.PrivateKey
+                    $RSAType = "RSA"
                 }
                 else {
                     # For newer certificate types, use GetRSAPrivateKey method
                     $RSA = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($ClientCertificate)
+                    $RSAType = "RSA"
                 }
 
                 if ($null -eq $RSA) {
                     throw "Unable to retrieve RSA private key from certificate"
                 }
 
-                Write-Verbose -Message "Successfully retrieved RSA private key from certificate"
+                Write-Verbose -Message "Successfully retrieved RSA private key from certificate (Type: $($RSAType))"
 
-                # Sign the JWT
-                $Signature = $RSA.SignData($JWTBytesToSign, [System.Security.Cryptography.HashAlgorithmName]::SHA256, [System.Security.Cryptography.RSASignaturePadding]::Pkcs1)
+                # Sign the JWT - different methods for different RSA types
+                if ($RSAType -eq "RSACryptoServiceProvider") {
+                    # PowerShell 5.1 compatible method
+                    # The issue might be that the certificate's CSP doesn't support SHA256
+                    # Try to export and re-import the key to ensure it uses a compatible CSP
+                    try {
+                        # Check if this is an old CSP that doesn't support SHA256
+                        $CspKeyContainerInfo = $RSA.CspKeyContainerInfo
+                        Write-Verbose -Message "CSP Provider: $($CspKeyContainerInfo.ProviderName) (Type: $($CspKeyContainerInfo.ProviderType))"
+                        
+                        # Export the parameters and create a new RSA provider with SHA256-compatible CSP
+                        $RSAParameters = $RSA.ExportParameters($true)
+                        $NewRSA = New-Object System.Security.Cryptography.RSACryptoServiceProvider
+                        $NewRSA.ImportParameters($RSAParameters)
+                        
+                        # Compute hash and sign with the new provider
+                        $SHA256 = [System.Security.Cryptography.SHA256]::Create()
+                        $Hash = $SHA256.ComputeHash($JWTBytesToSign)
+                        $SHA256.Dispose()
+                        
+                        # Try SignHash with the new provider
+                        $Signature = $NewRSA.SignHash($Hash, "SHA256")
+                        $NewRSA.Dispose()
+                    }
+                    catch {
+                        throw "RSACryptoServiceProvider signing failed: $($_). Your certificate might be using an older cryptographic service provider that doesn't support SHA256."
+                    }
+                }
+                else {
+                    # PowerShell 7.x method using HashAlgorithmName
+                    $Signature = $RSA.SignData($JWTBytesToSign, [System.Security.Cryptography.HashAlgorithmName]::SHA256, [System.Security.Cryptography.RSASignaturePadding]::Pkcs1)
+                }
+                
                 $SignatureEncoded = [Convert]::ToBase64String($Signature).TrimEnd('=').Replace('+', '-').Replace('/', '_')
 
                 Write-Verbose -Message "JWT signature created successfully"
