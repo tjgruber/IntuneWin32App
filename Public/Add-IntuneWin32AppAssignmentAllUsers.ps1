@@ -27,6 +27,9 @@ function Add-IntuneWin32AppAssignmentAllUsers {
     .PARAMETER DeliveryOptimizationPriority
         Specify to download content in the background using default value of 'notConfigured', or set to download in foreground using 'foreground'.
 
+    .PARAMETER AutoUpdateSupersededApps
+        Specify to automatically update superseded app using default value of 'notConfigured'.
+
     .PARAMETER EnableRestartGracePeriod
         Specify whether Restart Grace Period functionality for this assignment should be configured, additional parameter input using at least RestartGracePeriod and RestartCountDownDisplay is required.
 
@@ -56,6 +59,7 @@ function Add-IntuneWin32AppAssignmentAllUsers {
         1.0.1 - (2021-04-01) Updated token expired message to a warning instead of verbose output
         1.0.2 - (2021-08-31) Updated to use new authentication header
         1.0.3 - (2023-09-04) Updated with Test-AccessToken function
+        1.0.4 - (2026-01-18) Added AutoUpdateSupersededApps parameter for automatic supersedence updates
     #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     param(
@@ -89,6 +93,11 @@ function Add-IntuneWin32AppAssignmentAllUsers {
         [ValidateNotNullOrEmpty()]
         [ValidateSet("notConfigured", "foreground")]
         [string]$DeliveryOptimizationPriority = "notConfigured",
+
+        [parameter(Mandatory = $false, HelpMessage = "Specify to automatically update superseded app using default value of 'notConfigured'.")]
+        [ValidateNotNullOrEmpty()]
+        [ValidateSet("notConfigured", "enabled", "unknownFutureValue")]
+        [string]$AutoUpdateSupersededApps = "notConfigured",
 
         [parameter(Mandatory = $false, HelpMessage = "Specify whether Restart Grace Period functionality for this assignment should be configured, additional parameter input using at least RestartGracePeriod and RestartCountDownDisplay is required.")]
         [ValidateNotNullOrEmpty()]
@@ -130,6 +139,13 @@ function Add-IntuneWin32AppAssignmentAllUsers {
 
         # Set script variable for error action preference
         $ErrorActionPreference = "Stop"
+
+        # Validate that AutoUpdateSupersededApps is only allowed with Intent equals available
+        if ($PSBoundParameters["AutoUpdateSupersededApps"]) {
+            if ($PSBoundParameters["Intent"] -ne "available") {
+                Write-Warning -Message "Validation failed for parameter input, AutoUpdateSupersededApps is only allowed with Intent equals available."; break
+            }
+        }
 
         # Validate that Available parameter input datetime object is in the past if the Deadline parameter is not passed on the command line
         if ($PSBoundParameters["AvailableTime"]) {
@@ -214,6 +230,13 @@ function Add-IntuneWin32AppAssignmentAllUsers {
                 "installTimeSettings" = $null
             }
             $Win32AppAssignmentBody.Add("settings", $SettingsTable)
+
+            # Amend autoUpdateSettings property if Intent equals available and the app supersedes another app
+            if (($Intent -eq "available") -and ($Win32App.supersededAppCount -gt 0)) {
+                $Win32AppAssignmentBody.settings.autoUpdateSettings = @{
+                    "autoUpdateSupersededAppsState" = $AutoUpdateSupersededApps
+                }
+            }
 
             # Amend installTimeSettings property if Available parameter is specified
             if (($PSBoundParameters["AvailableTime"]) -and (-not($PSBoundParameters["DeadlineTime"]))) {

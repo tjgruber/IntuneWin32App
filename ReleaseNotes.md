@@ -6,12 +6,12 @@
 - Removed MSAL.PS dependency completely - module now uses native OAuth 2.0 implementation for all authentication flows
 - Updated `Connect-MSIntuneGraph` function to require explicit ClientID parameter - removed deprecated Microsoft Intune PowerShell enterprise application fallback
 - Updated `New-IntuneWin32AppRequirementRule` function to support ARM64 architecture and switched to modern `allowedArchitectures` property by default
-- ClientCert authentication flow temporarily disabled - not yet implemented without MSAL.PS dependency
 
 ### New Features
 - Added native OAuth 2.0 Authorization Code flow with PKCE (RFC 7636) implementation for Interactive authentication
 - Added OAuth 2.0 Device Code flow support via new `New-DeviceCodeAccessToken` private function and `-DeviceCode` parameter in `Connect-MSIntuneGraph`
 - Added OAuth 2.0 Client Credentials flow support via new `New-ClientCredentialsAccessToken` private function for modern service principal authentication without MSAL.PS dependency
+- Added OAuth 2.0 Client Certificate authentication flow via new `New-ClientCertificateAccessToken` private function with robust JWT creation, certificate validation, and error handling - completes all OAuth 2.0 flows without external dependencies
 - Added OAuth 2.0 Refresh Token flow for silent token renewal via new `Update-AccessTokenFromRefreshToken` private function and `-Refresh` parameter in `Connect-MSIntuneGraph`
 - Added automatic token refresh in `Invoke-MSGraphOperation` function - checks token expiration before all Graph API calls and refreshes automatically if needed
 - Added dynamic port assignment for OAuth callback HTTP listener - automatically finds available ports for localhost redirect
@@ -34,6 +34,7 @@
 - Improved architecture option naming for clarity: replaced confusing "All" option with explicit `x64x86`
 - Enhanced `Connect-MSIntuneGraph` function documentation with Windows Terminal compatibility guidance for authentication flows
 - Updated `Test-AccessToken` function to use 5-minute renewal threshold (down from 10 minutes) to prevent conflicts with minimum Access Token Lifetime policies in Entra ID
+- Added `AutoUpdateSupersededApps` parameter to all assignment functions (`Add-IntuneWin32AppAssignmentGroup`, `Add-IntuneWin32AppAssignmentAllDevices`, `Add-IntuneWin32AppAssignmentAllUsers`) enabling automatic app updates via supersedence relationships (introduced in Intune 2404 update) - parameter validates that Intent is set to 'available' and only applies when app has configured supersedence relationships (Issue #158)
 
 ### Test Suite Improvements
 - Created comprehensive test suite testing all 38 public functions in 9 sequential phases
@@ -46,7 +47,6 @@
 - Updated test runner (`Invoke-IntuneWin32AppTests.ps1`) to execute comprehensive test suite
 - 90%+ success rate standard maintained for release readiness
 
-### Authentication & Token Management
 ### Authentication & Token Management
 - Added robust retry mechanisms throughout the module with exponential backoff for transient failures (429 rate limiting, 503 service unavailable)
 - Implemented retry logic for Win32 app creation, content version creation, file content creation, and Azure Storage blob operations

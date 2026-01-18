@@ -17,6 +17,7 @@ function Connect-MSIntuneGraph {
 
     .PARAMETER ClientCert
         A Certificate object (not just thumbprint) representing the client certificate for an Azure AD service principal.
+        The certificate must contain the private key and be valid (not expired).
 
     .PARAMETER RedirectUri
         Specify the Redirect URI (also known as Reply URL) of the custom Azure AD service principal.
@@ -28,13 +29,13 @@ function Connect-MSIntuneGraph {
         Specify to use device code authentication flow for environments where interactive browser is not available.
 
     .PARAMETER Refresh
-        Specify to refresh an existing access token. Note: Token refresh is not currently implemented.
+        Specify to refresh an existing access token using stored refresh token.
 
     .NOTES
         Author:      Nickolaj Andersen
         Contact:     @NickolajA
         Created:     2021-08-31
-        Updated:     2026-01-04
+        Updated:     2026-01-18
 
         Version history:
         1.0.0 - (2021-08-31) Script created
@@ -46,6 +47,7 @@ function Connect-MSIntuneGraph {
         1.0.6 - (2026-01-02) BREAKING CHANGE: Removed MSAL.PS dependency, now uses New-DelegatedAccessToken for Interactive and New-ClientCredentialsAccessToken for ClientSecret flows
         1.0.7 - (2026-01-02) Added DeviceCode authentication flow support using New-DeviceCodeAccessToken
         1.0.8 - (2026-01-04) Implemented silent token refresh using Update-AccessTokenFromRefreshToken function
+        1.0.9 - (2026-01-18) Implemented native client certificate authentication using New-ClientCertificateAccessToken function - completes all OAuth 2.0 flows without external dependencies
     #>
     [CmdletBinding(DefaultParameterSetName = "Interactive")]
     param(
@@ -169,8 +171,16 @@ function Connect-MSIntuneGraph {
                     }
                 }
                 "ClientCert" {
-                    Write-Error -Message "ClientCert authentication flow is not yet implemented without MSAL.PS. Use -ClientSecret parameter instead."
-                    return
+                    Write-Verbose -Message "Using New-ClientCertificateAccessToken for client certificate authentication"
+                    try {
+                        New-ClientCertificateAccessToken -TenantID $TenantID -ClientID $ClientID -ClientCertificate $ClientCert
+                        $Global:AccessTokenTenantID = $TenantID
+                        Write-Verbose -Message "Successfully retrieved access token using client certificate"
+                    }
+                    catch {
+                        Write-Error -Message "An error occurred while retrieving access token using client certificate: $($_)"
+                        return
+                    }
                 }
             }
 

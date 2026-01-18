@@ -25,3 +25,4 @@ Build/
 # Log files
 *.log
 *.txt
+.github/instructions/IntuneWin32App.instructions.md
