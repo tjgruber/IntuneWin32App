@@ -541,7 +541,6 @@ function Add-IntuneWin32App {
                             Write-Verbose -Message "Constructing Win32 app content file body for uploading of .intunewin file"
                             $Win32AppFileBody = [ordered]@{
                                 "@odata.type" = "#microsoft.graph.mobileAppContentFile"
-                                #"name" = $IntuneWinXMLMetaData.ApplicationInfo.FileName
                                 "name" = [System.IO.Path]::GetFileName($FilePath)
                                 "size" = [int64]$IntuneWinXMLMetaData.ApplicationInfo.UnencryptedContentSize
                                 "sizeEncrypted" = (Get-Item -Path $IntuneWinFilePath).Length
