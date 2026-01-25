@@ -63,7 +63,7 @@ function Get-IntuneWin32AppMetaData {
     
             # Attempt to extract meta data from .intunewin file
             try {
-                if ($IntuneWin32AppFile -ne $null) {
+                if ($null -ne $IntuneWin32AppFile) {
                     # Determine the detection.xml file inside zip archive
                     $DetectionXMLFile = $IntuneWin32AppFile.Entries | Where-Object { $_.Name -like "detection.xml" }
                     
@@ -82,13 +82,19 @@ function Get-IntuneWin32AppMetaData {
                     # Handle return value with XML content from detection.xml
                     return $DetectionXMLContent
                 }
+                else {
+                    Write-Warning -Message "Unable to open .intunewin file, file object is null"
+                    return $null
+                }
             }
             catch [System.Exception] {
                 Write-Warning -Message "An error occurred while reading application information from detection.xml file. Error message: $($_.Exception.Message)"
+                return $null
             }
         }
         catch [System.Exception] {
             Write-Warning -Message "An error occurred while attempting to open compressed '$($FilePath)' file. Error message: $($_.Exception.Message)"
+            return $null
         }
     }
 }

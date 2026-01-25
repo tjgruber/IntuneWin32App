@@ -35,13 +35,8 @@ function Remove-IntuneWin32AppAssignmentAllUsers {
     )
     Begin {
         # Ensure required authentication header variable exists
-        if ($Global:AuthenticationHeader -eq $null) {
+        if (-not (Test-AuthenticationState)) {
             Write-Warning -Message "Authentication token was not found, use Connect-MSIntuneGraph before using this function"; break
-        }
-        else {
-            if ((Test-AccessToken) -eq $false) {
-                Write-Warning -Message "Existing token found but has expired, use Connect-MSIntuneGraph to request a new authentication token"; break
-            }
         }
 
         # Set script variable for error action preference
@@ -60,11 +55,11 @@ function Remove-IntuneWin32AppAssignmentAllUsers {
                             $Win32AppID = $Win32App.id
                         }
                         else {
-                            Write-Warning -Message "Query for Win32 apps returned empty a result, no apps matching the specified search criteria was found"
+                            Write-Verbose -Message "Query for Win32 apps returned empty a result, no apps matching the specified search criteria was found"
                         }
                     }
                     else {
-                        Write-Warning -Message "Query for Win32 apps returned empty a result, no apps matching type 'win32LobApp' was found in tenant"
+                        Write-Verbose -Message "Query for Win32 apps returned empty a result, no apps matching type 'win32LobApp' was found in tenant"
                     }
                 }
                 else {
@@ -80,7 +75,7 @@ function Remove-IntuneWin32AppAssignmentAllUsers {
             try {
                 # Attempt to call Graph and retrieve all assignments for Win32 app
                 $Win32AppAssignmentResponse = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($Win32AppID)/assignments" -ErrorAction Stop
-                if ($Win32AppAssignmentResponse -ne $null -and $Win32AppAssignmentResponse.Count -gt 0) {
+                if ($null -ne $Win32AppAssignmentResponse -and $Win32AppAssignmentResponse.Count -gt 0) {
                     # Filter for 'All Users' assignments only
                     $AllUsersAssignments = $Win32AppAssignmentResponse | Where-Object { $_.target.'@odata.type' -eq "#microsoft.graph.allLicensedUsersAssignmentTarget" }
                     

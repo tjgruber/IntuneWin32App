@@ -36,13 +36,8 @@ function New-IntuneWin32AppDependency {
     )
     Begin {
         # Ensure required authentication header variable exists
-        if ($Global:AuthenticationHeader -eq $null) {
+        if (-not (Test-AuthenticationState)) {
             Write-Warning -Message "Authentication token was not found, use Connect-MSIntuneGraph before using this function"; break
-        }
-        else {
-            if ((Test-AccessToken) -eq $false) {
-                Write-Warning -Message "Existing token found but has expired, use Connect-MSIntuneGraph to request a new authentication token"; break
-            }
         }
 
         # Set script variable for error action preference
@@ -52,7 +47,7 @@ function New-IntuneWin32AppDependency {
         # Retrieve Win32 app by ID from parameter input
         Write-Verbose -Message "Querying for Win32 app using ID: $($ID)"
         $Win32App = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($ID)"
-        if ($Win32App -ne $null) {
+        if ($null -ne $Win32App) {
             $Win32AppID = $Win32App.id
 
             # Handle upper and lower case for dependency type variable

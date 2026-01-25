@@ -60,13 +60,8 @@ function Update-IntuneWin32AppPackageFile {
     )
     Begin {
         # Ensure required authentication header variable exists
-        if ($Global:AuthenticationHeader -eq $null) {
+        if (-not (Test-AuthenticationState)) {
             Write-Warning -Message "Authentication token was not found, use Connect-MSIntuneGraph before using this function"; break
-        }
-        else {
-            if ((Test-AccessToken) -eq $false) {
-                Write-Warning -Message "Existing token found but has expired, use Connect-MSIntuneGraph to request a new authentication token"; break
-            }
         }
 
         # Set script variable for error action preference
@@ -95,7 +90,7 @@ function Update-IntuneWin32AppPackageFile {
                     # Extract compressed .intunewin file to subfolder
                     $SubFolderName = "Expand_" + [System.Guid]::NewGuid().ToString("N").Substring(0, 12)
                     $IntuneWinFilePath = Expand-IntuneWin32AppCompressedFile -FilePath $FilePath -FileName $IntuneWinXMLMetaData.ApplicationInfo.FileName -FolderName $SubFolderName
-                    if ($IntuneWinFilePath -ne $null) {
+                    if ($null -ne $IntuneWinFilePath) {
                         # Create a new file entry in Intune for the upload of the .intunewin file
                         Write-Verbose -Message "Constructing Win32 app content file body for uploading of .intunewin file"
                         $Win32AppFileBody = [ordered]@{

@@ -35,13 +35,8 @@ function Remove-IntuneWin32AppAssignmentAllDevices {
     )
     Begin {
         # Ensure required authentication header variable exists
-        if ($Global:AuthenticationHeader -eq $null) {
+        if (-not (Test-AuthenticationState)) {
             Write-Warning -Message "Authentication token was not found, use Connect-MSIntuneGraph before using this function"; break
-        }
-        else {
-            if ((Test-AccessToken) -eq $false) {
-                Write-Warning -Message "Existing token found but has expired, use Connect-MSIntuneGraph to request a new authentication token"; break
-            }
         }
 
         # Set script variable for error action preference
@@ -53,18 +48,18 @@ function Remove-IntuneWin32AppAssignmentAllDevices {
                 $MobileApps = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps"
                 if ($MobileApps.Count -ge 1) {
                     $Win32MobileApps = $MobileApps | Where-Object { $_.'@odata.type' -like "#microsoft.graph.win32LobApp" }
-                    if ($Win32MobileApps -ne $null) {
+                    if ($null -ne $Win32MobileApps -and $Win32MobileApps.Count -gt 0) {
                         $Win32App = $Win32MobileApps | Where-Object { $_.displayName -like $DisplayName }
-                        if ($Win32App -ne $null) {
+                        if ($null -ne $Win32App) {
                             Write-Verbose -Message "Detected Win32 app with ID: $($Win32App.id)"
                             $Win32AppID = $Win32App.id
                         }
                         else {
-                            Write-Warning -Message "Query for Win32 apps returned empty a result, no apps matching the specified search criteria was found"
+                            Write-Verbose -Message "Query for Win32 apps returned empty a result, no apps matching the specified search criteria was found"
                         }
                     }
                     else {
-                        Write-Warning -Message "Query for Win32 apps returned empty a result, no apps matching type 'win32LobApp' was found in tenant"
+                        Write-Verbose -Message "Query for Win32 apps returned empty a result, no apps matching type 'win32LobApp' was found in tenant"
                     }
                 }
                 else {
@@ -80,7 +75,7 @@ function Remove-IntuneWin32AppAssignmentAllDevices {
             try {
                 # Attempt to call Graph and retrieve all assignments for Win32 app
                 $Win32AppAssignmentResponse = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($Win32AppID)/assignments" -ErrorAction Stop
-                if ($Win32AppAssignmentResponse -ne $null -and $Win32AppAssignmentResponse.Count -gt 0) {
+                if ($null -ne $Win32AppAssignmentResponse -and $Win32AppAssignmentResponse.Count -gt 0) {
                     # Filter for 'All Devices' assignments only
                     $AllDevicesAssignments = $Win32AppAssignmentResponse | Where-Object { $_.target.'@odata.type' -eq "#microsoft.graph.allDevicesAssignmentTarget" }
                     

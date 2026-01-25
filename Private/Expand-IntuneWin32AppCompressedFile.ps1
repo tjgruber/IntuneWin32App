@@ -81,7 +81,7 @@ function Expand-IntuneWin32AppCompressedFile {
 
             # Attempt to extract named file from .intunewin file
             try {
-                if ($IntuneWin32AppFile -ne $null) {
+                if ($null -ne $IntuneWin32AppFile) {
                     # Determine the detection.xml file inside zip archive
                     $IntuneWin32AppFile.Entries | Where-Object { $_.Name -like $FileName } | ForEach-Object {
                         [System.IO.Compression.ZipFileExtensions]::ExtractToFile($_, (Join-Path -Path $ExtractionFolderPath -ChildPath $FileName), $true)

@@ -1,17 +1,12 @@
 # Release notes for IntuneWin32App module
 
-## 1.5.1
-
-### Bug Fixes
-- Fixed Issue #208: Refresh token functionality now works properly - Update-AccessTokenFromRefreshToken function now stores the new refresh token returned by Entra ID and includes offline_access scope to ensure subsequent token refreshes continue to work
-- Updated Connect-MSIntuneGraph and Invoke-MSGraphOperation to include offline_access scope in all token refresh requests to maintain refresh token continuity
-
-### Enhancements
-- Added Scopes parameter to Connect-MSIntuneGraph function allowing users to customize requested permissions while providing sensible defaults for full module functionality (DeviceManagementApps.ReadWrite.All, DeviceManagementConfiguration.ReadWrite.All, DeviceManagementRBAC.Read.All, Group.Read.All, offline_access)
-- Users can now use group-based assignments and assignment filters without manually specifying additional scopes
-- Private authentication functions now require scopes to be passed from public function rather than having defaults, following proper PowerShell module design patterns
-
 ## 1.5.0
+
+### Major Code Quality Improvements
+- **Module-Wide Output Handling Standardization**: Performed comprehensive code alignment across all 65 functions (39 Public + 26 Private) to ensure consistent, predictable output behavior throughout the module
+  - **Collection-Returning Functions**: All GET operations that return collections (Get-IntuneWin32App, Get-IntuneWin32AppAssignment, Get-IntuneWin32AppDependency, Get-IntuneWin32AppSupersedence, Get-IntuneWin32AppCategory) now consistently return empty arrays `@()` instead of `$null` when no results are found, making them pipeline-friendly and eliminating null reference errors
+  - **Single Object Functions**: Functions returning single objects (Get-IntuneWin32App with ID parameter, Get-IntuneWin32AppMetaData) now explicitly return `$null` with verbose messages when objects are not found
+  - **Boolean Functions**: All boolean-returning functions (Get-IntuneWin32AppRelationship, Test-AccessToken, Test-AuthenticationState) now explicitly return `$true` or `$false` in all code paths, including error scenarios
 
 ### Breaking Changes
 - Removed MSAL.PS dependency completely - module now uses native OAuth 2.0 implementation for all authentication flows
@@ -46,17 +41,9 @@
 - Enhanced `Connect-MSIntuneGraph` function documentation with Windows Terminal compatibility guidance for authentication flows
 - Updated `Test-AccessToken` function to use 5-minute renewal threshold (down from 10 minutes) to prevent conflicts with minimum Access Token Lifetime policies in Entra ID
 - Added `AutoUpdateSupersededApps` parameter to all assignment functions (`Add-IntuneWin32AppAssignmentGroup`, `Add-IntuneWin32AppAssignmentAllDevices`, `Add-IntuneWin32AppAssignmentAllUsers`) enabling automatic app updates via supersedence relationships (introduced in Intune 2404 update) - parameter validates that Intent is set to 'available' and only applies when app has configured supersedence relationships (Issue #158)
-
-### Test Suite Improvements
-- Created comprehensive test suite testing all 38 public functions in 9 sequential phases
-- Test coverage includes authentication, package creation, component creation, app management, assignments, relationships, updates, and removal
-- Automated test script generation for detection and requirement rules
-- Function coverage tracking with 100% coverage (38/38 functions)
-- Detailed pass/fail reporting with function names and timing information
-- JSON result export with complete test details and environment information
-- Deprecated and removed old test suites (Test-AssignmentManagement.ps1, Test-ModuleFunctions.ps1) - functionality merged into comprehensive test
-- Updated test runner (`Invoke-IntuneWin32AppTests.ps1`) to execute comprehensive test suite
-- 90%+ success rate standard maintained for release readiness
+- Added Scopes parameter to `Connect-MSIntuneGraph` function allowing users to customize requested permissions while providing sensible defaults for full module functionality (DeviceManagementApps.ReadWrite.All, DeviceManagementConfiguration.ReadWrite.All, DeviceManagementRBAC.Read.All, Group.Read.All, offline_access)
+- Users can now use group-based assignments and assignment filters without manually specifying additional scopes - the default scope set includes all necessary permissions
+- Updated private authentication functions to require scopes to be passed from public functions rather than having defaults, following proper PowerShell module design patterns
 
 ### Authentication & Token Management
 - Added robust retry mechanisms throughout the module with exponential backoff for transient failures (429 rate limiting, 503 service unavailable)

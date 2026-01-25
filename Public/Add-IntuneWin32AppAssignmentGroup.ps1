@@ -152,13 +152,8 @@ function Add-IntuneWin32AppAssignmentGroup {
     )
     Begin {
         # Ensure required authentication header variable exists
-        if ($Global:AuthenticationHeader -eq $null) {
+        if (-not (Test-AuthenticationState)) {
             Write-Warning -Message "Authentication token was not found, use Connect-MSIntuneGraph before using this function"; break
-        }
-        else {
-            if ((Test-AccessToken) -eq $false) {
-                Write-Warning -Message "Existing token found but has expired, use Connect-MSIntuneGraph to request a new authentication token"; break
-            }
         }
 
         # Set script variable for error action preference
@@ -230,9 +225,9 @@ function Add-IntuneWin32AppAssignmentGroup {
             # Ensure a Filter exist by given name from parameter input
             Write-Verbose -Message "Querying for specified Filter: $($FilterName)"
             $AssignmentFilters = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceManagement/assignmentFilters" -Verbose
-            if ($AssignmentFilters -ne $null) {
-                $AssignmentFilter = $AssignmentFilters | Where-Object { $PSItem.displayName -eq $FilterName }
-                if ($AssignmentFilter -ne $null) {
+            if ($null -ne $AssignmentFilters) {
+                $AssignmentFilter = $AssignmentFilters | Where-Object { $_.displayName -like $FilterName }
+                if ($null -ne $AssignmentFilter) {
                     Write-Verbose -Message "Found Filter with display name '$($AssignmentFilter.displayName)' and id: $($AssignmentFilter.id)"
                 }
                 else {
@@ -244,7 +239,7 @@ function Add-IntuneWin32AppAssignmentGroup {
         # Retrieve Win32 app by ID from parameter input
         Write-Verbose -Message "Querying for Win32 app using ID: $($ID)"
         $Win32App = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($ID)"
-        if ($Win32App -ne $null) {
+        if ($null -ne $Win32App) {
             $Win32AppID = $Win32App.id
 
             # Construct target assignment body
@@ -258,8 +253,8 @@ function Add-IntuneWin32AppAssignmentGroup {
             }
             $TargetAssignment = @{
                 "@odata.type" = $DataType
-                "deviceAndAppManagementAssignmentFilterId" = if ($AssignmentFilter -ne $null) { $AssignmentFilter.id } else { $null }
-                "deviceAndAppManagementAssignmentFilterType" = if ($AssignmentFilter -ne $null) { $FilterMode } else { "none" }
+                "deviceAndAppManagementAssignmentFilterId" = if ($null -ne $AssignmentFilter) { $AssignmentFilter.id } else { $null }
+                "deviceAndAppManagementAssignmentFilterType" = if ($null -ne $AssignmentFilter) { $FilterMode } else { "none" }
                 "groupId" = $GroupID
             }
 

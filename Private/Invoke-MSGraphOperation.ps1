@@ -188,7 +188,7 @@ function Invoke-MSGraphOperation {
                     $RequestSucceeded = $true
 
                     # Handle paging in response
-                    if ($GraphResponse.'@odata.nextLink' -ne $null) {
+                    if ($null -ne $GraphResponse.'@odata.nextLink') {
                         $GraphResponseList.AddRange($GraphResponse.value) | Out-Null
                         $GraphURI = $GraphResponse.'@odata.nextLink'
                         Write-Verbose -Message "NextLink: $($GraphURI)"

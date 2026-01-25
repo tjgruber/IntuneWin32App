@@ -276,13 +276,8 @@ function Add-IntuneWin32App {
     )
     Begin {
         # Ensure required authentication header variable exists
-        if ($Global:AuthenticationHeader -eq $null) {
+        if (-not (Test-AuthenticationState)) {
             Write-Warning -Message "Authentication token was not found, use Connect-MSIntuneGraph before using this function"; break
-        }
-        else {
-            if ((Test-AccessToken) -eq $false) {
-                Write-Warning -Message "Existing token found but has expired, use Connect-MSIntuneGraph to request a new authentication token"; break
-            }
         }
 
         # Set script variable for error action preference
@@ -294,7 +289,7 @@ function Add-IntuneWin32App {
             Write-Verbose -Message "Attempting to gather additional meta data from .intunewin file: $($FilePath)"
             $IntuneWinXMLMetaData = Get-IntuneWin32AppMetaData -FilePath $FilePath -ErrorAction Stop
 
-            if ($IntuneWinXMLMetaData -ne $null) {
+            if ($null -ne $IntuneWinXMLMetaData) {
                 Write-Verbose -Message "Successfully gathered additional meta data from .intunewin file"
 
                 # Get scope tag identifier if parameter is passed on command line
@@ -303,8 +298,8 @@ function Add-IntuneWin32App {
                     foreach ($ScopeTagItem in $ScopeTagName) {
                         # Ensure a Scope Tag exist by given name from parameter input
                         Write-Verbose -Message "Querying for specified Scope Tag: $($ScopeTagItem)"
-                        $ScopeTag = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceManagement/getRoleScopeTagsByResource(resource='MobileApps')?`$filter=displayName eq '$($ScopeTagItem)'" -ErrorAction "Stop"
-                        if ($ScopeTag -ne $null) {
+                        $ScopeTag = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceManagement/roleScopeTags?`$filter=displayName eq '$($ScopeTagItem)'"
+                        if ($null -ne $ScopeTag) {
                             Write-Verbose -Message "Found Scope Tag with display name '$($ScopeTag.displayName)' and id: $($ScopeTag.id)"
                             $ScopeTagList.Add($ScopeTag.id) | Out-Null
                         }
@@ -321,7 +316,7 @@ function Add-IntuneWin32App {
                         # Ensure category exist by given name from parameter input
                         Write-Verbose -Message "Querying for specified Category: $($CategoryNameItem)"
                         $Category = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileAppCategories?`$filter=displayName eq '$([System.Web.HttpUtility]::UrlEncode($CategoryNameItem))'" -ErrorAction "Stop"
-                        if ($Category -ne $null) {
+                        if ($null -ne $Category) {
                             $PSObject = [PSCustomObject]@{
                                 id = $Category.id
                                 displayName = $Category.displayName
@@ -541,7 +536,7 @@ function Add-IntuneWin32App {
                         # Extract compressed .intunewin file to subfolder
                         $SubFolderName = "Expand_" + [System.Guid]::NewGuid().ToString("N").Substring(0, 12)
                         $IntuneWinFilePath = Expand-IntuneWin32AppCompressedFile -FilePath $FilePath -FileName $IntuneWinXMLMetaData.ApplicationInfo.FileName -FolderName $SubFolderName
-                        if ($IntuneWinFilePath -ne $null) {
+                        if ($null -ne $IntuneWinFilePath) {
                             # Create a new file entry in Intune for the upload of the .intunewin file
                             Write-Verbose -Message "Constructing Win32 app content file body for uploading of .intunewin file"
                             $Win32AppFileBody = [ordered]@{

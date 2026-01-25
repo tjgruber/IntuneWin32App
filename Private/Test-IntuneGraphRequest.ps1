@@ -31,7 +31,7 @@ function Test-IntuneGraphRequest {
 
         # Call Graph API and get JSON response
         $GraphResponse = Invoke-RestMethod -Uri $GraphURI -Headers $AuthToken -Method "GET" -ErrorAction Stop -Verbose:$false
-        if ($GraphResponse -ne $null) {
+        if ($null -ne $GraphResponse) {
             return $true
         }
     }

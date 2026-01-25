@@ -41,13 +41,8 @@ function Remove-IntuneWin32AppAssignmentGroup {
     )
     Begin {
         # Ensure required authentication header variable exists
-        if ($Global:AuthenticationHeader -eq $null) {
+        if (-not (Test-AuthenticationState)) {
             Write-Warning -Message "Authentication token was not found, use Connect-MSIntuneGraph before using this function"; break
-        }
-        else {
-            if ((Test-AccessToken) -eq $false) {
-                Write-Warning -Message "Existing token found but has expired, use Connect-MSIntuneGraph to request a new authentication token"; break
-            }
         }
 
         # Set script variable for error action preference
@@ -65,11 +60,11 @@ function Remove-IntuneWin32AppAssignmentGroup {
                         $Win32AppID = $Win32MobileApp.id
                     }
                     else {
-                        Write-Warning -Message "Query for Win32 app returned an empty result, no apps matching the specified search criteria was found"
+                        Write-Verbose -Message "Query for Win32 app returned an empty result, no apps matching the specified search criteria was found"
                     }
                 }
                 else {
-                    Write-Warning -Message "Query for Win32 apps returned an empty result, no apps matching type 'win32LobApp' was found in tenant"
+                    Write-Verbose -Message "Query for Win32 apps returned an empty result, no apps matching type 'win32LobApp' was found in tenant"
                 }
             }
             "ID" {
@@ -81,7 +76,7 @@ function Remove-IntuneWin32AppAssignmentGroup {
             try {
                 # Attempt to call Graph and retrieve all assignments for Win32 app
                 $Win32AppAssignmentResponse = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($Win32AppID)/assignments" -ErrorAction "Stop"
-                if ($Win32AppAssignmentResponse -ne $null) {
+                if ($null -ne $Win32AppAssignmentResponse -and $Win32AppAssignmentResponse.Count -gt 0) {
                     # Process each assignment for removal
                     foreach ($Win32AppAssignment in $Win32AppAssignmentResponse) {
                         if ($Win32AppAssignment.target.groupId -eq $GroupID) {

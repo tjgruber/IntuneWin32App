@@ -5,6 +5,10 @@ function Get-IntuneWin32App {
 
     .DESCRIPTION
         Get all or a specific Win32 app by either DisplayName or ID.
+        
+        Note: When querying by DisplayName, the function queries Graph API's list endpoint which may have 
+        eventual consistency delays. Newly created apps may not appear in list queries for several minutes,
+        even though they're immediately accessible by direct ID query. This is expected Graph API behavior.
 
     .PARAMETER DisplayName
         Specify the display name for a Win32 application.
@@ -38,13 +42,8 @@ function Get-IntuneWin32App {
     )
     Begin {
         # Ensure required authentication header variable exists
-        if ($Global:AuthenticationHeader -eq $null) {
+        if (-not (Test-AuthenticationState)) {
             Write-Warning -Message "Authentication token was not found, use Connect-MSIntuneGraph before using this function"; break
-        }
-        else {
-            if ((Test-AccessToken) -eq $false) {
-                Write-Warning -Message "Existing token found but has expired, use Connect-MSIntuneGraph to request a new authentication token"; break
-            }
         }
 
         # Set script variable for error action preference
@@ -55,10 +54,12 @@ function Get-IntuneWin32App {
             "DisplayName" {
                 $Win32AppList = New-Object -TypeName "System.Collections.Generic.List[Object]"
                 $Win32MobileApps = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps?`$filter=isof('microsoft.graph.win32LobApp')"
-                if ($Win32MobileApps -ne $null) {
-                    Write-Verbose -Message "Filtering for Win32 apps matching displayName: $($DisplayName)"
+                if ($null -ne $Win32MobileApps -and $Win32MobileApps.Count -gt 0) {
+                    Write-Verbose -Message "Retrieved $($Win32MobileApps.Count) total Win32 apps from tenant"
+                    Write-Verbose -Message "Filtering for Win32 apps matching displayName using pattern: *$($DisplayName)*"
                     $Win32MobileApps = $Win32MobileApps | Where-Object { $_.displayName -like "*$($DisplayName)*" }
-                    if ($Win32MobileApps -ne $null) {
+                    if ($null -ne $Win32MobileApps -and $Win32MobileApps.Count -gt 0) {
+                        Write-Verbose -Message "Found $($Win32MobileApps.Count) app(s) matching the display name filter"
                         foreach ($Win32MobileApp in $Win32MobileApps) {
                             $Win32App = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($Win32MobileApp.id)"
                             $Win32AppList.Add($Win32App)
@@ -68,23 +69,33 @@ function Get-IntuneWin32App {
                         return $Win32AppList
                     }
                     else {
-                        Write-Warning -Message "Query for Win32 app returned an empty result, no apps matching the specified search criteria was found"
+                        Write-Verbose -Message "Query for Win32 app returned an empty result, no apps matching the specified search criteria was found"
+                        Write-Verbose -Message "Note: If searching for a newly created app, Graph API list endpoints may not reflect it immediately due to caching"
                     }
                 }
                 else {
-                    Write-Warning -Message "Query for Win32 apps returned an empty result, no apps matching type 'win32LobApp' was found in tenant"
+                    Write-Verbose -Message "Query for Win32 apps returned an empty result, no apps matching type 'win32LobApp' was found in tenant"
                 }
+                
+                # Return empty array for consistency
+                return @()
             }
             "ID" {
                 $Win32App = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($ID)"
 
-                # Handle return value
-                return $Win32App
+                # Handle return value - return null if not found
+                if ($null -ne $Win32App) {
+                    return $Win32App
+                }
+                else {
+                    Write-Verbose -Message "Query for Win32 app with ID '$($ID)' returned an empty result"
+                    return $null
+                }
             }
             default {
                 $Win32AppList = New-Object -TypeName "System.Collections.Generic.List[Object]"
                 $Win32MobileApps = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps?`$filter=isof('microsoft.graph.win32LobApp')"
-                if ($Win32MobileApps.Count -ge 1) {
+                if ($null -ne $Win32MobileApps -and $Win32MobileApps.Count -gt 0) {
                     foreach ($Win32MobileApp in $Win32MobileApps) {
                         $Win32App = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($Win32MobileApp.id)"
                         $Win32AppList.Add($Win32App)
@@ -94,8 +105,11 @@ function Get-IntuneWin32App {
                     return $Win32AppList
                 }
                 else {
-                    Write-Warning -Message "Query for Win32 apps returned an empty result, no apps matching type 'win32LobApp' was found in tenant"
+                    Write-Verbose -Message "Query for Win32 apps returned an empty result, no apps matching type 'win32LobApp' was found in tenant"
                 }
+                
+                # Return empty array for consistency
+                return @()
             }
         }
     }

@@ -185,13 +185,8 @@ function Set-IntuneWin32App {
     )
     Begin {
         # Ensure required authentication header variable exists
-        if ($Global:AuthenticationHeader -eq $null) {
+        if (-not (Test-AuthenticationState)) {
             Write-Warning -Message "Authentication token was not found, use Connect-MSIntuneGraph before using this function"; break
-        }
-        else {
-            if ((Test-AccessToken) -eq $false) {
-                Write-Warning -Message "Existing token found but has expired, use Connect-MSIntuneGraph to request a new authentication token"; break
-            }
         }
 
         # Set script variable for error action preference
@@ -201,7 +196,7 @@ function Set-IntuneWin32App {
         # Retrieve Win32 app by ID from parameter input
         Write-Verbose -Message "Querying for Win32 app using ID: $($ID)"
         $Win32App = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($ID)"
-        if ($Win32App -ne $null) {
+        if ($null -ne $Win32App) {
             $Win32AppID = $Win32App.id
 
             # Construct required part of request body for PATCH operation
@@ -253,7 +248,7 @@ function Set-IntuneWin32App {
                     try {
                         $Category = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileAppCategories?`$filter=displayName eq '$([System.Web.HttpUtility]::UrlEncode($CategoryNameItem))'" -ErrorAction "Stop"
                         
-                        if ($Category -ne $null) {
+                        if ($null -ne $Category) {
                             if ($Category.Count -eq 1) {
                                 $PSObject = [PSCustomObject]@{
                                     "@odata.type" = "#microsoft.graph.mobileAppCategory"
@@ -453,7 +448,7 @@ function Set-IntuneWin32App {
             }
         }
         else {
-            Write-Warning -Message "Query for Win32 app returned an empty result, no apps matching the specified search criteria with ID '$($ID)' was found"
+            Write-Verbose -Message "Query for Win32 app returned an empty result, no apps matching the specified search criteria with ID '$($ID)' was found"
         }
     }
 }
