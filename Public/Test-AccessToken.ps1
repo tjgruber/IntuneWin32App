@@ -46,7 +46,11 @@ function Test-AccessToken {
             }
 
             # Convert ExpiresOn to DateTimeOffset in UTC
-            $ExpiresOnUTC = [DateTimeOffset]::Parse($Global:AccessToken.ExpiresOn.ToString(), [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal).ToUniversalTime()
+            $ExpiresOnUTC = [DateTimeOffset]::Parse(
+                $Global:AccessToken.ExpiresOn.ToString(),
+                [System.Globalization.CultureInfo]::InvariantCulture,
+                [System.Globalization.DateTimeStyles]::AssumeUniversal
+                ).ToUniversalTime()
 
             # Get the current UTC time as DateTimeOffset
             $UTCDateTime = [DateTimeOffset]::UtcNow
@@ -63,10 +67,7 @@ function Test-AccessToken {
                 return $false
             }
             else {
-                # Only show verbose output if token expires within 10 minutes to reduce noise
-                if ($TokenExpireMinutes -le 10) {
-                    Write-Verbose -Message "Access token refresh is not required, remaining minutes until expiration: $($TokenExpireMinutes)"
-                }
+                Write-Verbose -Message "Access token refresh is not required, remaining minutes until expiration: $($TokenExpireMinutes)"
                 return $true
             }
         }

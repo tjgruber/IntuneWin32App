@@ -34,8 +34,13 @@ function Get-IntuneWin32AppCategory {
     )
     Begin {
         # Ensure required authentication header variable exists
-        if (-not (Test-AuthenticationState)) {
+        if ($Global:AuthenticationHeader -eq $null) {
             Write-Warning -Message "Authentication token was not found, use Connect-MSIntuneGraph before using this function"; break
+        }
+        else {
+            if ((Test-AccessToken) -eq $false) {
+                Write-Warning -Message "Existing token found but has expired, use Connect-MSIntuneGraph to request a new authentication token"; break
+            }
         }
 
         # Set script variable for error action preference
@@ -48,18 +53,18 @@ function Get-IntuneWin32AppCategory {
         # Construct resource uri depending on parameter set name
         switch ($PSCmdlet.ParameterSetName) {
             "DisplayName" {
-                $Resource = "deviceAppManagement/mobileAppCategories?`$filter=displayName eq '$([System.Web.HttpUtility]::UrlEncode($DisplayName))'"
+                $Resource = "mobileAppCategories?`$filter=displayName eq '$([System.Web.HttpUtility]::UrlEncode($DisplayName))'"
             }
             "List" {
-                $Resource = "deviceAppManagement/mobileAppCategories"
+                $Resource = "mobileAppCategories"
             }
         }
 
         try {
             # Invoke Graph API call to retrieve categories
-            $Win32AppCategories = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource $Resource -ErrorAction "Stop"
-            if ($null -ne $Win32AppCategories -and $Win32AppCategories.Count -gt 0) {
-                foreach ($Win32AppCategory in $Win32AppCategories) {
+            $Win32AppCategories = Invoke-IntuneGraphRequest -APIVersion "Beta" -Resource $Resource -Method "GET" -ErrorAction "Stop"
+            if ($Win32AppCategories.value.Count -ge 1) {
+                foreach ($Win32AppCategory in $Win32AppCategories.value) {
                     $PSObject = [PSCustomObject]@{
                         ID = $Win32AppCategory.id
                         DisplayName = $Win32AppCategory.displayName
@@ -74,20 +79,16 @@ function Get-IntuneWin32AppCategory {
             else {
                 switch ($PSCmdlet.ParameterSetName) {
                     "DisplayName" {
-                        Write-Verbose -Message "Could not find category with matching display name of '$($DisplayName)'"
+                        Write-Warning -Message "Could not find category with matching display name of '$($DisplayName)'"
                     }
                     "List" {
-                        Write-Verbose -Message "Empty response of categories from request"
+                        Write-Warning -Message "Empty response of categories from request"
                     }
                 }
-                
-                # Return empty array for consistency
-                return @()
             }
         }
         catch [System.Exception] {
             Write-Warning -Message "An error occurred while retrieving categories. Error message: $($_.Exception.Message)"
-            return @()
         }
     }
 }

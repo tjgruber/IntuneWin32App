@@ -36,8 +36,16 @@ function Get-IntuneWin32AppRelationship {
     )
     Begin {
         # Ensure required authentication header variable exists
-        if (-not (Test-AuthenticationState)) {
+        if ($Global:AuthenticationHeader -eq $null) {
             Write-Warning -Message "Authentication token was not found, use Connect-MSIntuneGraph before using this function"; break
+        }
+        else {
+            if ((Test-AccessToken) -eq $false) {
+                Write-Warning -Message "Existing token found but has expired, use Connect-MSIntuneGraph to request a new authentication token"; break
+            }
+            else {
+                Write-Verbose -Message "Current authentication token expires in (minutes): $($TokenLifeTime)"
+            }
         }
 
         # Set script variable for error action preference
@@ -49,31 +57,29 @@ function Get-IntuneWin32AppRelationship {
             $RelationshipExistence = $false
 
             # Attempt to call Graph and retrieve supersedence configuration for Win32 app
-            $Win32AppRelationshipResponse = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($ID)/relationships" -ErrorAction "Stop"
+            $Win32AppRelationshipResponse = Invoke-IntuneGraphRequest -APIVersion "Beta" -Resource "mobileApps/$($ID)/relationships" -Method "GET" -ErrorAction "Stop"
 
             # Switch depending on input type
-            if ($null -ne $Win32AppRelationshipResponse -and $Win32AppRelationshipResponse.Count -gt 0) {
+            if ($Win32AppRelationshipResponse.value -ne $null) {
                 switch ($Type) {
                     "Dependency" {
-                        if ($Win32AppRelationshipResponse.'@odata.type' -like "#microsoft.graph.mobileAppDependency") {
+                        if ($Win32AppRelationshipResponse.value.'@odata.type' -like "#microsoft.graph.mobileAppDependency") {
                             $RelationshipExistence = $true
                         }
                     }
                     "Supersedence" {
-                        if ($Win32AppRelationshipResponse.'@odata.type' -like "#microsoft.graph.mobileAppSupersedence") {
+                        if ($Win32AppRelationshipResponse.value.'@odata.type' -like "#microsoft.graph.mobileAppSupersedence") {
                             $RelationshipExistence = $true
                         }
                     }
                 }
             }
 
-            # Handle return value - explicitly return boolean
+            # Handle return value
             return $RelationshipExistence
         }
         catch [System.Exception] {
             Write-Warning -Message "An error occurred while retrieving relationships configuration for Win32 app: $($ID). Error message: $($_.Exception.Message)"
-            # Explicitly return false on error
-            return $false
         }
     }
 }

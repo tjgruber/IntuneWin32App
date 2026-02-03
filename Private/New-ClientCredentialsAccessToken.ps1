@@ -38,12 +38,12 @@ function New-ClientCredentialsAccessToken {
         [String]$ClientSecret
     )
     Process {
-        $graphRequestUri = "https://login.microsoftonline.com/$($TenantID)/oauth2/v2.0/token"
+        $graphRequestUri = "https://login.microsoftonline.com/$TenantID/oauth2/v2.0/token"
         $graphTokenRequestBody = @{
-            "client_id" = $ClientID
-            "scope" = "https://graph.microsoft.com/.default"
+            "client_id"     = $ClientID
+            "scope"         = "https://graph.microsoft.com/.default"
             "client_secret" = $ClientSecret
-            "grant_type" = "client_credentials"
+            "grant_type"    = "client_credentials"
         }
 
         try {
@@ -55,19 +55,12 @@ function New-ClientCredentialsAccessToken {
             }
 
             # Calculate the ExpiresOn property based on the expires_in value
-            $GraphAPIAuthResult | Add-Member -MemberType NoteProperty -Name "ExpiresOn" -Value ((Get-Date).AddSeconds($GraphAPIAuthResult.expires_in).ToUniversalTime()) -Force
-            
-            # Add Scopes property for permission tracking
-            $GraphAPIAuthResult | Add-Member -MemberType NoteProperty -Name "Scopes" -Value @("https://graph.microsoft.com/.default") -Force
-            
-            # Add AccessToken property for consistent access
-            $GraphAPIAuthResult | Add-Member -MemberType NoteProperty -Name "AccessToken" -Value $GraphAPIAuthResult.access_token -Force
+            $GraphAPIAuthResult | Add-Member -MemberType NoteProperty -Name "ExpiresOn" -Value ((Get-Date).AddSeconds($GraphAPIAuthResult.expires_in).ToUniversalTime())
 
-            # Set global variable
-            $Global:AccessToken = $GraphAPIAuthResult
+            return $GraphAPIAuthResult
         }
         catch {
-            throw "Error retrieving the access token: $($_)"
+            throw "Error retrieving the access token: $_"
         }
     }
 }

@@ -15,9 +15,6 @@ Build/
 # Visual Studio Code settings
 .vscode/
 
-# Copilot instructions (moved to .github/instructions)
-.copilot/
-
 # Temporary files
 *.tmp
 *.temp
@@ -25,4 +22,3 @@ Build/
 # Log files
 *.log
 *.txt
-.github/instructions/IntuneWin32App.instructions.md

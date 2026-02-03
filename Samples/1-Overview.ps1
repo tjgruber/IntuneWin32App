@@ -1,5 +1,6 @@
 # Install IntuneWin32App module from PowerShellGallery
-# - No external dependencies required - all OAuth 2.0 flows implemented natively
+# - Required modules:
+# -- MSAL.PS (installed automatically)
 Install-Module -Name "IntuneWin32App" -AcceptLicense
 Get-InstalledModule -Name "IntuneWin32App"
 
@@ -9,23 +10,12 @@ Get-Command -Module "IntuneWin32App"
 
 
 # Retrieve access token required for accessing Microsoft Graph
-# All OAuth 2.0 authentication flows are supported natively:
-
-# Interactive authentication (Authorization Code with PKCE)
-Connect-MSIntuneGraph -TenantID "tenant.onmicrosoft.com" -ClientID "<ClientID>"
-
-# Device Code flow (for non-interactive environments)
-Connect-MSIntuneGraph -TenantID "tenant.onmicrosoft.com" -ClientID "<ClientID>" -DeviceCode
-
-# Client Secret (Service Principal)
-Connect-MSIntuneGraph -TenantID "tenant.onmicrosoft.com" -ClientID "<ClientID>" -ClientSecret "<Secret>"
-
-# Client Certificate (Service Principal)
-$Cert = Get-ChildItem -Path "Cert:\CurrentUser\My" | Where-Object { $_.Thumbprint -eq "<Thumbprint>" }
-Connect-MSIntuneGraph -TenantID "tenant.onmicrosoft.com" -ClientID "<ClientID>" -ClientCert $Cert
-
-# Refresh existing token
-Connect-MSIntuneGraph -TenantID "tenant.onmicrosoft.com" -ClientID "<ClientID>" -Refresh
+# Delegated authentication (client authorization and device code flows) are currently supported
+Connect-MSIntuneGraph -TenantID "tenant.onmicrosoft.com"
+Connect-MSIntuneGraph -TenantID "tenant.onmicrosoft.com" -Verbose
+Connect-MSIntuneGraph -TenantID "tenant.onmicrosoft.com" -DeviceCode
+Connect-MSIntuneGraph -TenantID "tenant.onmicrosoft.com" -Refresh
+Connect-MSIntuneGraph -TenantID "tenant.onmicrosoft.com" -Interactive
 
 
 # Access token available in global variable

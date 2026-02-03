@@ -35,8 +35,13 @@ function Remove-IntuneWin32App {
     )
     Begin {
         # Ensure required authentication header variable exists
-        if (-not (Test-AuthenticationState)) {
+        if ($Global:AuthenticationHeader -eq $null) {
             Write-Warning -Message "Authentication token was not found, use Connect-MSIntuneGraph before using this function"; break
+        }
+        else {
+            if ((Test-AccessToken) -eq $false) {
+                Write-Warning -Message "Existing token found but has expired, use Connect-MSIntuneGraph to request a new authentication token"; break
+            }
         }
 
         # Set script variable for error action preference
@@ -45,12 +50,12 @@ function Remove-IntuneWin32App {
     Process {
         switch ($PSCmdlet.ParameterSetName) {
             "DisplayName" {
-                $MobileApps = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps"
-                if ($MobileApps.Count -ge 1) {
-                    $Win32MobileApps = $MobileApps | Where-Object { $_.'@odata.type' -like "#microsoft.graph.win32LobApp" }
-                    if ($null -ne $Win32MobileApps -and $Win32MobileApps.Count -gt 0) {
+                $MobileApps = Invoke-IntuneGraphRequest -APIVersion "Beta" -Resource "mobileApps" -Method "GET"
+                if ($MobileApps.value.Count -ge 1) {
+                    $Win32MobileApps = $MobileApps.value | Where-Object { $_.'@odata.type' -like "#microsoft.graph.win32LobApp" }
+                    if ($Win32MobileApps -ne $null) {
                         $Win32App = $Win32MobileApps | Where-Object { $_.displayName -like $DisplayName }
-                        if ($null -ne $Win32App) {
+                        if ($Win32App -ne $null) {
                             Write-Verbose -Message "Detected Win32 app with ID: $($Win32App.id)"
                             $Win32AppID = $Win32App.id
                         }
@@ -74,7 +79,7 @@ function Remove-IntuneWin32App {
         if (-not([string]::IsNullOrEmpty($Win32AppID))) {
             try {
                 # Attempt to call Graph and delete Win32 app
-                $Win32AppDeletionResponse = Invoke-MSGraphOperation -Delete -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($Win32AppID)" -ErrorAction Stop
+                $Win32AppDeletionResponse = Invoke-IntuneGraphRequest -APIVersion "Beta" -Resource "mobileApps/$($Win32AppID)" -Method "DELETE" -ErrorAction Stop
             }
             catch [System.Exception] {
                 Write-Warning -Message "An error occurred while deleting Win32 app with ID: $($Win32AppID). Error message: $($_.Exception.Message)"

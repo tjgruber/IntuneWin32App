@@ -53,7 +53,7 @@ function Start-DownloadFile {
         do {
             $PercentComplete = $Global:DPCEventArgs.ProgressPercentage
             $DownloadedBytes = $Global:DPCEventArgs.BytesReceived
-            if ($null -ne $DownloadedBytes) {
+            if ($DownloadedBytes -ne $null) {
                 Write-Progress -Activity "Downloading file: $($Name)" -Id 1 -Status "Downloaded bytes: $($DownloadedBytes)" -PercentComplete $PercentComplete
             }
         }

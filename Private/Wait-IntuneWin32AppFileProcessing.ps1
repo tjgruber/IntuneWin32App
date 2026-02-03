@@ -24,29 +24,12 @@ function Wait-IntuneWin32AppFileProcessing {
         [ValidateNotNullOrEmpty()]
         [string]$Resource
     )
-    
-    # Initialize poll counter for progressive backoff
-    $PollCount = 0
-    
     do {
-        $GraphRequest = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource $Resource
+        $GraphRequest = Invoke-IntuneGraphRequest -APIVersion "Beta" -Resource $Resource -Method "GET"
         switch ($GraphRequest.uploadState) {
             "$($Stage)Pending" {
-                $PollCount++
-                
-                # Progressive backoff: 1s for first 5 polls, 3s for next 10 polls, 5s thereafter
-                if ($PollCount -le 5) {
-                    $WaitSeconds = 1
-                }
-                elseif ($PollCount -le 15) {
-                    $WaitSeconds = 3
-                }
-                else {
-                    $WaitSeconds = 5
-                }
-                
-                Write-Verbose -Message "Intune service request for operation '$($Stage)' is in pending state (attempt $($PollCount)), waiting $($WaitSeconds) second(s)"
-                Start-Sleep -Seconds $WaitSeconds
+                Write-Verbose -Message "Intune service request for operation '$($Stage)' is in pending state, sleeping for 10 seconds"
+                Start-Sleep -Seconds 10
             }
             "$($Stage)Failed" {
                 Write-Warning -Message "Intune service request for operation '$($Stage)' failed"

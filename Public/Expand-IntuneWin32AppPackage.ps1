@@ -71,7 +71,7 @@ function Expand-IntuneWin32AppPackage {
                 # Read Win32 app meta data
                 Write-Verbose -Message "Attempting to gather required Win32 app meta data from file: $($FilePath)"
                 $IntuneWinMetaData = Get-IntuneWin32AppMetaData -FilePath $FilePath -ErrorAction Stop
-                if ($null -ne $IntuneWinMetaData) {
+                if ($IntuneWinMetaData -ne $null) {
                     # Retrieve Base64 encoded encryption key
                     $Base64Key = $IntuneWinMetaData.ApplicationInfo.EncryptionInfo.EncryptionKey
                     Write-Verbose -Message "Found Base64 encoded encryption key from meta data: $($Base64Key)"
@@ -185,19 +185,19 @@ function Expand-IntuneWin32AppPackage {
     }
     End {
         # Dispose of objects and release locks
-        if ($null -ne $CryptoStream) {
+        if ($CryptoStream -ne $null) {
             $CryptoStream.Dispose()
         }
-        if ($null -ne $FileStreamSource) {
+        if ($FileStreamSource -ne $null) {
             $FileStreamSource.Dispose()
         }
-        if ($null -ne $Decryptor) {
+        if ($Decryptor -ne $null) {
             $Decryptor.Dispose()
         }
-        if ($null -ne $FileStreamTarget) {
+        if ($FileStreamTarget -ne $null) {
             $FileStreamTarget.Dispose()
         }
-        if ($null -ne $AES) {
+        if ($AES -ne $null) {
             $AES.Dispose()
         }
 

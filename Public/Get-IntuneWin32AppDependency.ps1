@@ -27,8 +27,13 @@ function Get-IntuneWin32AppDependency {
     )
     Begin {
         # Ensure required authentication header variable exists
-        if (-not (Test-AuthenticationState)) {
+        if ($Global:AuthenticationHeader -eq $null) {
             Write-Warning -Message "Authentication token was not found, use Connect-MSIntuneGraph before using this function"; break
+        }
+        else {
+            if ((Test-AccessToken) -eq $false) {
+                Write-Warning -Message "Existing token found but has expired, use Connect-MSIntuneGraph to request a new authentication token"; break
+            }
         }
 
         # Set script variable for error action preference
@@ -37,24 +42,18 @@ function Get-IntuneWin32AppDependency {
     Process {
         # Retrieve Win32 app by ID from parameter input
         Write-Verbose -Message "Querying for Win32 app using ID: $($ID)"
-        $Win32App = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($ID)"
-        if ($null -ne $Win32App) {
+        $Win32App = Invoke-IntuneGraphRequest -APIVersion "Beta" -Resource "mobileApps/$($ID)" -Method "GET"
+        if ($Win32App -ne $null) {
             $Win32AppID = $Win32App.id
 
             try {
                 # Attempt to call Graph and retrieve dependency configuration for Win32 app
-                $Win32AppRelationsResponse = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($Win32AppID)/relationships" -ErrorAction Stop
+                $Win32AppRelationsResponse = Invoke-IntuneGraphRequest -APIVersion "Beta" -Resource "mobileApps/$($Win32AppID)/relationships" -Method "GET" -ErrorAction Stop
 
                 # Handle return value
-                if ($null -ne $Win32AppRelationsResponse -and $Win32AppRelationsResponse.Count -gt 0) {
-                    # Filter for dependency relationships
-                    $DependencyRelationships = $Win32AppRelationsResponse | Where-Object { $_.'@odata.type' -eq "#microsoft.graph.mobileAppDependency" }
-                    if ($null -ne $DependencyRelationships -and $DependencyRelationships.Count -gt 0) {
-                        Write-Verbose -Message "Found $(@($DependencyRelationships).Count) dependency relationship(s)"
-                        return $DependencyRelationships
-                    }
-                    else {
-                        Write-Verbose -Message "No dependency relationships found for Win32 app: $($Win32AppID)"
+                if ($Win32AppRelationsResponse.value -ne $null) {
+                    if ($Win32AppRelationsResponse.value.'@odata.type' -like "#microsoft.graph.mobileAppDependency") {
+                        return $Win32AppRelationsResponse.value
                     }
                 }
             }
@@ -63,10 +62,7 @@ function Get-IntuneWin32AppDependency {
             }
         }
         else {
-            Write-Verbose -Message "Query for Win32 app returned an empty result, no apps matching the specified search criteria with ID '$($ID)' was found"
+            Write-Warning -Message "Query for Win32 app returned an empty result, no apps matching the specified search criteria with ID '$($ID)' was found"
         }
-        
-        # Return empty array for consistency
-        return @()
     }
 }

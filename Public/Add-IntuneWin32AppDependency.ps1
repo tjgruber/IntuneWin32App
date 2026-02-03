@@ -35,8 +35,13 @@ function Add-IntuneWin32AppDependency {
     )
     Begin {
         # Ensure required authentication header variable exists
-        if (-not (Test-AuthenticationState)) {
+        if ($Global:AuthenticationHeader -eq $null) {
             Write-Warning -Message "Authentication token was not found, use Connect-MSIntuneGraph before using this function"; break
+        }
+        else {
+            if ((Test-AccessToken) -eq $false) {
+                Write-Warning -Message "Existing token found but has expired, use Connect-MSIntuneGraph to request a new authentication token"; break
+            }
         }
 
         # Set script variable for error action preference
@@ -50,8 +55,8 @@ function Add-IntuneWin32AppDependency {
     Process {
         # Retrieve Win32 app by ID from parameter input
         Write-Verbose -Message "Querying for Win32 app using ID: $($ID)"
-        $Win32App = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($ID)"
-        if ($null -ne $Win32App) {
+        $Win32App = Invoke-IntuneGraphRequest -APIVersion "Beta" -Resource "mobileApps/$($ID)" -Method "GET"
+        if ($Win32App -ne $null) {
             $Win32AppID = $Win32App.id
 
             # Check for existing supersedence relations for Win32 app, as these relationships need to be included in the update
@@ -65,7 +70,7 @@ function Add-IntuneWin32AppDependency {
 
                 try {
                     # Attempt to call Graph and configure dependency for Win32 app
-                    Invoke-MSGraphOperation -Post -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($Win32AppID)/updateRelationships" -Body ($Win32AppRelationshipsTable | ConvertTo-Json) -ErrorAction Stop
+                    Invoke-IntuneGraphRequest -APIVersion "Beta" -Resource "mobileApps/$($Win32AppID)/updateRelationships" -Method "POST" -Body ($Win32AppRelationshipsTable | ConvertTo-Json) -ErrorAction Stop
                 }
                 catch [System.Exception] {
                     Write-Warning -Message "An error occurred while configuring dependency for Win32 app: $($Win32AppID). Error message: $($_.Exception.Message)"
@@ -78,7 +83,7 @@ function Add-IntuneWin32AppDependency {
             }
         }
         else {
-            Write-Verbose -Message "Query for Win32 app returned an empty result, no apps matching the specified search criteria with ID '$($ID)' was found"
+            Write-Warning -Message "Query for Win32 app returned an empty result, no apps matching the specified search criteria with ID '$($ID)' was found"
         }
     }
 }

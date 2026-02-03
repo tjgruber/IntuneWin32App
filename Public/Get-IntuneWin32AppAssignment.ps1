@@ -55,8 +55,13 @@ function Get-IntuneWin32AppAssignment {
     )
     Begin {
         # Ensure required authentication header variable exists
-        if (-not (Test-AuthenticationState)) {
+        if ($Global:AuthenticationHeader -eq $null) {
             Write-Warning -Message "Authentication token was not found, use Connect-MSIntuneGraph before using this function"; break
+        }
+        else {
+            if ((Test-AccessToken) -eq $false) {
+                Write-Warning -Message "Existing token found but has expired, use Connect-MSIntuneGraph to request a new authentication token"; break
+            }
         }
 
         # Set script variable for error action preference
@@ -69,31 +74,31 @@ function Get-IntuneWin32AppAssignment {
         switch ($PSCmdlet.ParameterSetName) {
             "DisplayName" {
                 $Win32MobileApps = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps?`$filter=isof('microsoft.graph.win32LobApp')"
-                if ($null -ne $Win32MobileApps -and $Win32MobileApps.Count -gt 0) {
+                if ($Win32MobileApps -ne $null) {
                     Write-Verbose -Message "Filtering for Win32 apps matching displayName: $($DisplayName)"
                     $Win32MobileApps = $Win32MobileApps | Where-Object { $_.displayName -like "*$($DisplayName)*" }
-                    if ($null -ne $Win32MobileApps -and $Win32MobileApps.Count -gt 0) {
+                    if ($Win32MobileApps -ne $null) {
                         foreach ($Win32MobileApp in $Win32MobileApps) {
                             $Win32App = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($Win32MobileApp.id)"
                             $Win32AppList.Add($Win32App)
                         }
                     }
                     else {
-                        Write-Verbose -Message "Query for Win32 app returned an empty result, no apps matching the specified search criteria was found"
+                        Write-Warning -Message "Query for Win32 app returned an empty result, no apps matching the specified search criteria was found"
                     }
                 }
                 else {
-                    Write-Verbose -Message "Query for Win32 apps returned an empty result, no apps matching type 'win32LobApp' was found in tenant"
+                    Write-Warning -Message "Query for Win32 apps returned an empty result, no apps matching type 'win32LobApp' was found in tenant"
                 }
             }
             "ID" {
                 try {
                     $Win32MobileApp = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($ID)" -ErrorAction "Stop"
-                    if ($null -ne $Win32MobileApp) {
+                    if ($Win32MobileApp -ne $null) {
                         $Win32AppList.Add($Win32MobileApp)
                     }
                     else {
-                        Write-Verbose -Message "Query for Win32 apps returned an empty result, no apps matching ID '$($ID)' was found in tenant"
+                        Write-Warning -Message "Query for Win32 apps returned an empty result, no apps matching ID '$($ID)' was found in tenant"
                     }
                 }
                 catch [System.Exception] {
@@ -102,13 +107,13 @@ function Get-IntuneWin32AppAssignment {
             }
             "Group" {
                 $Win32MobileApps = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps?`$filter=isof('microsoft.graph.win32LobApp')"
-                if ($null -ne $Win32MobileApps -and $Win32MobileApps.Count -gt 0) {
+                if ($Win32MobileApps -ne $null) {
                     foreach ($Win32MobileApp in $Win32MobileApps) {
                         $Win32AppList.Add($Win32MobileApp) | Out-Null
                     }
                 }
                 else {
-                    Write-Verbose -Message "Query for Win32 apps returned empty a result, no apps matching type 'win32LobApp' was found in tenant"
+                    Write-Warning -Message "Query for Win32 apps returned empty a result, no apps matching type 'win32LobApp' was found in tenant"
                 }
             }
         }
@@ -121,14 +126,14 @@ function Get-IntuneWin32AppAssignment {
             foreach ($Win32MobileApp in $Win32AppList) {
                 try {
                     # Attempt to call Graph and retrieve all assignments for each Win32 app
-                    $Win32AppAssignmentResponse = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($Win32MobileApp.id)/assignments" -ErrorAction Stop
-                    if ($null -ne $Win32AppAssignmentResponse -and $Win32AppAssignmentResponse.Count -gt 0) {
+                    $Win32AppAssignmentResponse = Invoke-IntuneGraphRequest -APIVersion "Beta" -Resource "mobileApps/$($Win32MobileApp.id)/assignments" -Method "GET" -ErrorAction Stop
+                    if ($Win32AppAssignmentResponse.value -ne $null) {
                         if ($PSCmdlet.ParameterSetName -eq "Group") {
                             if ($PSBoundParameters["Intent"]) {
-                                $Win32AppAssignmentMatches = $Win32AppAssignmentResponse | Where-Object { ($PSItem.target.'@odata.type' -like "*groupAssignmentTarget") -and ($PSItem.intent -like $Intent) }
+                                $Win32AppAssignmentMatches = $Win32AppAssignmentResponse.value | Where-Object { ($PSItem.target.'@odata.type' -like "*groupAssignmentTarget") -and ($PSItem.intent -like $Intent) }
                             }
                             else {
-                                $Win32AppAssignmentMatches = $Win32AppAssignmentResponse | Where-Object { $PSItem.target.'@odata.type' -like "*groupAssignmentTarget" }
+                                $Win32AppAssignmentMatches = $Win32AppAssignmentResponse.value | Where-Object { $PSItem.target.'@odata.type' -like "*groupAssignmentTarget" }
                             }
     
                             foreach ($Win32AppAssignment in $Win32AppAssignmentMatches) {
@@ -172,7 +177,7 @@ function Get-IntuneWin32AppAssignment {
                             }
                         }
                         else {
-                            foreach ($Win32AppAssignment in $Win32AppAssignmentResponse) {
+                            foreach ($Win32AppAssignment in $Win32AppAssignmentResponse.value) {
                                 # Determine if assignment is either Include or Exclude for GroupMode property output
                                 switch ($Win32AppAssignment.target.'@odata.type') {
                                     "#microsoft.graph.groupAssignmentTarget" {
@@ -198,7 +203,7 @@ function Get-IntuneWin32AppAssignment {
                                     FilterID = $Win32AppAssignment.target.deviceAndAppManagementAssignmentFilterId
                                     FilterType = $Win32AppAssignment.target.deviceAndAppManagementAssignmentFilterType
                                     GroupID = $Win32AppAssignment.target.groupId
-                                    GroupName = if ($null -ne $AzureADGroupResponse) { $AzureADGroupResponse.displayName } else { $null }
+                                    GroupName = if ($AzureADGroupResponse -ne $null) { $AzureADGroupResponse.displayName } else { $null }
                                     Intent = $Win32AppAssignment.intent
                                     GroupMode = $GroupMode
                                     DeliveryOptimizationPriority = $Win32AppAssignment.settings.deliveryOptimizationPriority
@@ -211,7 +216,7 @@ function Get-IntuneWin32AppAssignment {
                         }
                     }
                     else {
-                        Write-Verbose -Message "No assignments found for Win32 app: $($Win32MobileApp.displayName)"
+                        Write-Warning -Message "Empty response for assignments for Win32 app: $($Win32MobileApp.displayName)"
                     }
                 }
                 catch [System.Exception] {

@@ -35,8 +35,13 @@ function Remove-IntuneWin32AppAssignmentAllUsers {
     )
     Begin {
         # Ensure required authentication header variable exists
-        if (-not (Test-AuthenticationState)) {
+        if ($Global:AuthenticationHeader -eq $null) {
             Write-Warning -Message "Authentication token was not found, use Connect-MSIntuneGraph before using this function"; break
+        }
+        else {
+            if ((Test-AccessToken) -eq $false) {
+                Write-Warning -Message "Existing token found but has expired, use Connect-MSIntuneGraph to request a new authentication token"; break
+            }
         }
 
         # Set script variable for error action preference
@@ -45,9 +50,9 @@ function Remove-IntuneWin32AppAssignmentAllUsers {
     Process {
         switch ($PSCmdlet.ParameterSetName) {
             "DisplayName" {
-                $MobileApps = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps"
-                if ($MobileApps.Count -ge 1) {
-                    $Win32MobileApps = $MobileApps | Where-Object { $_.'@odata.type' -like "#microsoft.graph.win32LobApp" }
+                $MobileApps = Invoke-IntuneGraphRequest -APIVersion "Beta" -Resource "mobileApps" -Method "GET"
+                if ($MobileApps.value.Count -ge 1) {
+                    $Win32MobileApps = $MobileApps.value | Where-Object { $_.'@odata.type' -like "#microsoft.graph.win32LobApp" }
                     if ($Win32MobileApps -ne $null) {
                         $Win32App = $Win32MobileApps | Where-Object { $_.displayName -like $DisplayName }
                         if ($Win32App -ne $null) {
@@ -55,11 +60,11 @@ function Remove-IntuneWin32AppAssignmentAllUsers {
                             $Win32AppID = $Win32App.id
                         }
                         else {
-                            Write-Verbose -Message "Query for Win32 apps returned empty a result, no apps matching the specified search criteria was found"
+                            Write-Warning -Message "Query for Win32 apps returned empty a result, no apps matching the specified search criteria was found"
                         }
                     }
                     else {
-                        Write-Verbose -Message "Query for Win32 apps returned empty a result, no apps matching type 'win32LobApp' was found in tenant"
+                        Write-Warning -Message "Query for Win32 apps returned empty a result, no apps matching type 'win32LobApp' was found in tenant"
                     }
                 }
                 else {
@@ -74,10 +79,10 @@ function Remove-IntuneWin32AppAssignmentAllUsers {
         if (-not([string]::IsNullOrEmpty($Win32AppID))) {
             try {
                 # Attempt to call Graph and retrieve all assignments for Win32 app
-                $Win32AppAssignmentResponse = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($Win32AppID)/assignments" -ErrorAction Stop
-                if ($null -ne $Win32AppAssignmentResponse -and $Win32AppAssignmentResponse.Count -gt 0) {
+                $Win32AppAssignmentResponse = Invoke-IntuneGraphRequest -APIVersion "Beta" -Resource "mobileApps/$($Win32AppID)/assignments" -Method "GET" -ErrorAction Stop
+                if ($Win32AppAssignmentResponse.value -ne $null) {
                     # Filter for 'All Users' assignments only
-                    $AllUsersAssignments = $Win32AppAssignmentResponse | Where-Object { $_.target.'@odata.type' -eq "#microsoft.graph.allLicensedUsersAssignmentTarget" }
+                    $AllUsersAssignments = $Win32AppAssignmentResponse.value | Where-Object { $_.target.'@odata.type' -eq "#microsoft.graph.allLicensedUsersAssignmentTarget" }
                     
                     if ($AllUsersAssignments.Count -gt 0) {
                         Write-Verbose -Message "Found $($AllUsersAssignments.Count) 'All Users' assignment(s) for removal"
@@ -90,7 +95,7 @@ function Remove-IntuneWin32AppAssignmentAllUsers {
                             
                             try {
                                 # Remove current 'All Users' assignment
-                                $Win32AppAssignmentRemoveResponse = Invoke-MSGraphOperation -Delete -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($Win32AppID)/assignments/$($Assignment.id)" -ErrorAction Stop
+                                $Win32AppAssignmentRemoveResponse = Invoke-IntuneGraphRequest -APIVersion "Beta" -Resource "mobileApps/$($Win32AppID)/assignments/$($Assignment.id)" -Method "DELETE" -ErrorAction Stop
                                 Write-Verbose -Message "Successfully removed 'All Users' assignment with intent '$($AssignmentIntent)' and ID: $($Assignment.id)"
                             }
                             catch [System.Exception] {

@@ -97,8 +97,7 @@ function Invoke-IntuneGraphRequest {
             # If successful, return the response
             return $GraphResponse
 
-        }
-        catch [System.Net.WebException] {
+        } catch [System.Net.WebException] {
             # Handle WebException for transient errors
             $StatusCode = $_.Exception.Response.StatusCode
             if ($StatusCode -eq 429 -or $StatusCode -eq 503) {
@@ -111,8 +110,7 @@ function Invoke-IntuneGraphRequest {
             # Handle non-retryable WebException
             Write-Warning "Non-retryable WebException occurred. Status code: [$StatusCode]. Message: [$($_.Exception.Message)]"
             throw $_
-        }
-        catch {
+        } catch {
             # Handle other exceptions (e.g., transient error patterns)
             if ($_.Exception.Message -match $TransientErrors) {
                 $RetryDelay = Get-Random -Minimum $RetryDelayRange.Min -Maximum $RetryDelayRange.Max

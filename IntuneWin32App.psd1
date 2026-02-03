@@ -144,14 +144,6 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         # ReleaseNotes = ''
-        
-        # Files and folders to exclude when publishing to PowerShell Gallery
-        Exclude = @(
-            'Tests/*'
-            'Development/*'
-            'Samples/*'
-            '.gitignore'
-        )
 
     } # End of PSData hashtable
 
