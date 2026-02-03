@@ -76,7 +76,7 @@ function Invoke-AzureCopyUtility {
 
         # Attempt to resolve path to AzCopy.exe in extracted content
         $AzCopyPath = Join-Path -Path (Resolve-Path -Path (Join-Path -Path $env:TEMP -ChildPath "AzCopy\azcopy_windows_amd64*") | Select-Object -ExpandProperty "Path") -ChildPath "AzCopy.exe"
-        if ($AzCopyPath -ne $null) {
+        if ($null -ne $AzCopyPath) {
             try {
                 # Initiate transfer of content depending on window style parameter
                 switch ($WindowStyle) {
