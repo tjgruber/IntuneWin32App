@@ -13,7 +13,7 @@ function Test-AccessToken {
         Author:      Nickolaj Andersen
         Contact:     @NickolajA
         Created:     2021-04-08
-        Updated:     2024-11-15
+        Updated:     2026-02-04
 
         Version history:
         1.0.0 - (2021-04-08) Script created
@@ -22,6 +22,7 @@ function Test-AccessToken {
         1.0.3 - (2024-05-29) Updated to handle tokens with ExpiresOn property (thanks to @tjgruber)
         1.0.4 - (2024-11-15) Refactor date handling for token to fix locale-specific parsing issues (thanks to @tjgruber)
         1.0.5 - (2025-12-07) Reduced default RenewalThresholdMinutes from 10 to 5 minutes to avoid conflicts with minimum Access Token Lifetime policies
+        1.0.6 - (2026-02-04) Fixed invariant culture parsing issue in DateTimeOffset conversion (@tjgruber)
     #>
     param(
         [parameter(Mandatory = $false, HelpMessage = "Specify the renewal threshold for access token age in minutes.")]
@@ -46,7 +47,7 @@ function Test-AccessToken {
             }
 
             # Convert ExpiresOn to DateTimeOffset in UTC
-            $ExpiresOnUTC = [DateTimeOffset]::Parse($Global:AccessToken.ExpiresOn.ToString(), [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal).ToUniversalTime()
+            $ExpiresOnUTC = [DateTimeOffset]::Parse($Global:AccessToken.ExpiresOn.ToString([System.Globalization.CultureInfo]::InvariantCulture), [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal).ToUniversalTime()
 
             # Get the current UTC time as DateTimeOffset
             $UTCDateTime = [DateTimeOffset]::UtcNow

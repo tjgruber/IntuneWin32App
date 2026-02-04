@@ -13,15 +13,16 @@ function Invoke-AzureStorageBlobUpload {
         Author:      Nickolaj Andersen
         Contact:     @NickolajA
         Created:     2020-01-04
-        Updated:     2024-11-15
+        Updated:     2026-02-04
 
         Version history:
         1.0.0 - (2020-01-04) Function created
         1.0.1 - (2020-09-20) Fixed an issue where the System.IO.BinaryReader wouldn't open a file path containing whitespaces
         1.0.2 - (2021-03-15) Fixed an issue where SAS Uri renewal wasn't working correctly
         1.0.3 - (2022-09-03) Added access token refresh functionality when a token is about to expire, to prevent uploads from failing due to an expired access token
-        1.0.5 - (2024-06-04) Added retry logic for chunk uploads and finalization steps to enhance reliability (thanks to @tjgruber)
-        1.0.6 - (2024-11-15) Refactor date handling for token to fix locale-specific parsing issues (thanks to @tjgruber)
+        1.0.5 - (2024-06-04) Added retry logic for chunk uploads and finalization steps to enhance reliability (@tjgruber)
+        1.0.6 - (2024-11-15) Refactor date handling for token to fix locale-specific parsing issues (@tjgruber)
+        1.0.7 - (2026-02-04) Fixed invariant culture parsing issue in DateTimeOffset conversion (@tjgruber)
     #>
     param(
         [parameter(Mandatory = $true)]
@@ -58,7 +59,7 @@ function Invoke-AzureStorageBlobUpload {
 
         # Convert ExpiresOn to DateTimeOffset in UTC
         $ExpiresOnUTC = [DateTimeOffset]::Parse(
-            $Global:AccessToken.ExpiresOn.ToString(),
+            $Global:AccessToken.ExpiresOn.ToString([System.Globalization.CultureInfo]::InvariantCulture),
             [System.Globalization.CultureInfo]::InvariantCulture,
             [System.Globalization.DateTimeStyles]::AssumeUniversal
             ).ToUniversalTime()
