@@ -76,9 +76,8 @@ function Remove-IntuneWin32AppAssignment {
         if (-not([string]::IsNullOrEmpty($Win32AppID))) {
             try {
                 # Attempt to call Graph and retrieve all assignments for Win32 app
-                $Win32AppAssignmentResponse = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($Win32AppID)/assignments" -ErrorAction Stop
-                $Win32AppAssignments = @($Win32AppAssignmentResponse.value)
-                if ($null -ne $Win32AppAssignmentResponse -and $Win32AppAssignments.Count -gt 0) {
+                $Win32AppAssignments = @(Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($Win32AppID)/assignments" -ErrorAction Stop)
+                if ($null -ne $Win32AppAssignments -and $Win32AppAssignments.Count -gt 0) {
                     Write-Verbose -Message "Count of assignments for Win32 app before attempted removal process: $(($Win32AppAssignments | Measure-Object).Count)"
 
                     # Process each assignment for removal
@@ -90,13 +89,12 @@ function Remove-IntuneWin32AppAssignment {
                             $Win32AppAssignmentRemoveResponse = Invoke-MSGraphOperation -Delete -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($Win32AppID)/assignments/$($Win32AppAssignment.id)" -ErrorAction Stop
                         }
                         catch [System.Exception] {
-                            Write-Warning -Message "An error occurred while retrieving Win32 app assignments for app with ID: $($Win32AppID). Error message: $($_.Exception.Message)"
+                            Write-Warning -Message "An error occurred while deleting Win32 app assignments for app with ID: $($Win32AppID). Error message: $($_.Exception.Message)"
                         }
                     }
 
                     # Calculate amount of remaining assignments after attempted removal process
-                    $Win32AppAssignmentResponse = Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($Win32AppID)/assignments" -ErrorAction Stop
-                    $Win32AppAssignments = @($Win32AppAssignmentResponse.value)
+                    $Win32AppAssignments = @(Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceAppManagement/mobileApps/$($Win32AppID)/assignments" -ErrorAction Stop)
                     Write-Verbose -Message "Count of assignments for Win32 app after attempted removal process: $(($Win32AppAssignments | Measure-Object).Count)"
                 }
                 else {
