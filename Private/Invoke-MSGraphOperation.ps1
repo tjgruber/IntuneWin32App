@@ -202,7 +202,10 @@ function Invoke-MSGraphOperation {
                             # Do nothing to return empty
                         }
                         else {
-                            $GraphResponseList.Add($GraphResponse) | Out-Null
+                            # Only add as a single instance if it's not a collection envelope
+                            if (-not $GraphResponse.PSObject.Properties['value']) {
+                                $GraphResponseList.Add($GraphResponse) | Out-Null
+                            }
                         }
 
                         # Set graph response as handled and stop processing loop
